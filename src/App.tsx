@@ -1,0 +1,119 @@
+import { useState, useEffect } from 'react';
+import type { FAQ, Page } from './types';
+import { useAuth } from './hooks/useAuth';
+import ErrorBoundary from './components/ErrorBoundary';
+import { ToastProvider } from './components/Toast';
+import Login from './components/Login';
+import Sidebar from './components/Sidebar';
+import Dashboard from './components/Dashboard';
+import FaqManagement from './components/FaqManagement';
+import DocumentManagement from './components/DocumentManagement';
+import ChunkManagement from './components/ChunkManagement';
+import ChatLogs from './components/ChatLogs';
+import ChatLogAnalysis from './components/ChatLogAnalysis';
+import SystemSettings from './components/SystemSettings';
+import DatabaseSettings from './components/DatabaseSettings';
+import UserChatbot from './components/UserChatbot';
+
+function App() {
+  const { user, loading, signOut } = useAuth();
+  const [currentView, setCurrentView] = useState<'login' | 'admin' | 'chatbot'>('login');
+  const [currentPage, setCurrentPage] = useState<Page>('대시보드');
+  const [faqs, setFaqs] = useState<FAQ[]>([]);
+
+  // URL query parameter handling
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const view = params.get('view');
+    if (view === 'chatbot') {
+      setCurrentView('chatbot');
+    }
+  }, []);
+
+  // Auth state → view switching
+  useEffect(() => {
+    if (user) {
+      if (currentView === 'login') {
+        setCurrentView('admin');
+      }
+    } else if (!loading) {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('view') !== 'chatbot') {
+        setCurrentView('login');
+      }
+    }
+  }, [user, loading, currentView]);
+
+  const handleLogout = async () => {
+    await signOut();
+    setCurrentView('login');
+    setCurrentPage('대시보드');
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+          <p className="mt-4 text-gray-600">로딩 중...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Chatbot view (public)
+  if (currentView === 'chatbot') {
+    return (
+      <ErrorBoundary>
+        <ToastProvider>
+          <UserChatbot />
+        </ToastProvider>
+      </ErrorBoundary>
+    );
+  }
+
+  // Login view
+  if (currentView === 'login' || !user) {
+    return (
+      <ErrorBoundary>
+        <ToastProvider>
+          <Login onLogin={() => setCurrentView('admin')} />
+        </ToastProvider>
+      </ErrorBoundary>
+    );
+  }
+
+  // Admin panel with sidebar
+  const renderPage = () => {
+    switch (currentPage) {
+      case '대시보드': return <Dashboard />;
+      case 'FAQ 관리': return <FaqManagement faqs={faqs} setFaqs={setFaqs} />;
+      case '문서 관리': return <DocumentManagement setFaqs={setFaqs} />;
+      case '청크 관리': return <ChunkManagement />;
+      case '채팅 로그': return <ChatLogs />;
+      case '채팅 분석': return <ChatLogAnalysis />;
+      case '시스템 설정': return <SystemSettings />;
+      case '데이터베이스': return <DatabaseSettings isOpen={true} onClose={() => setCurrentPage('대시보드')} />;
+      default: return <Dashboard />;
+    }
+  };
+
+  return (
+    <ErrorBoundary>
+      <ToastProvider>
+        <div className="flex h-screen bg-gray-50">
+          <Sidebar
+            currentPage={currentPage}
+            setCurrentPage={setCurrentPage}
+            onLogout={handleLogout}
+          />
+          <main className="flex-1 overflow-auto">
+            {renderPage()}
+          </main>
+        </div>
+      </ToastProvider>
+    </ErrorBoundary>
+  );
+}
+
+export default App;
