@@ -31,7 +31,7 @@ export function extractToken(req: VercelRequest): string | null {
 export async function validateToken(token: string): Promise<{ valid: boolean; userId?: string; error?: string }> {
   try {
     const supabase = getSupabaseAdmin();
-    const { data, error } = await supabase.auth.getUser(token);
+    const { data, error } = await (supabase.auth as any).getUser(token);
 
     if (error) {
       return { valid: false, error: error.message };
