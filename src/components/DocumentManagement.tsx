@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { FAQ, PDFDocument } from '../types';
 import PDFUploadModal from './PDFUploadModal';
 import PDFDocumentViewer from './PDFDocumentViewer';
@@ -6,6 +6,7 @@ import DatabaseSettings from './DatabaseSettings';
 import { getSupabaseDatabaseService, getSupabaseStorageService } from '../services/supabase';
 import { useToast } from './Toast';
 import { createLogger } from '../services/logger';
+import * as XLSX from 'xlsx';
 
 const log = createLogger('DocMgmt');
 interface DocumentManagementProps {
@@ -25,6 +26,74 @@ const DocumentManagement: React.FC<DocumentManagementProps> = ({ setFaqs }) => {
   const dbService = useMemo(() => getSupabaseDatabaseService(), []);
   const storageService = useMemo(() => getSupabaseStorageService(), []);
   const { showToast } = useToast();
+  const excelInputRef = useRef<HTMLInputElement>(null);
+  const [isExcelUploading, setIsExcelUploading] = useState(false);
+
+  const handleExcelUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.match(/\.(xlsx|xls)$/i)) {
+      showToast('엑셀 파일(.xlsx, .xls)만 업로드 가능합니다.', 'error');
+      return;
+    }
+
+    setIsExcelUploading(true);
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data);
+
+      const allFaqs: { question: string; answer: string; category: string }[] = [];
+
+      for (const sheetName of workbook.SheetNames) {
+        const sheet = workbook.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json<Record<string, string>>(sheet);
+
+        for (const row of rows) {
+          const question = (row['질문'] || '').trim();
+          const answer = (row['답변'] || '').trim();
+          if (question && answer) {
+            allFaqs.push({ question, answer, category: sheetName });
+          }
+        }
+      }
+
+      if (allFaqs.length === 0) {
+        showToast('엑셀에서 FAQ 데이터를 찾을 수 없습니다. "질문"과 "답변" 열이 필요합니다.', 'error');
+        return;
+      }
+
+      let successCount = 0;
+      let failCount = 0;
+
+      for (const faq of allFaqs) {
+        try {
+          await dbService.createFAQ({
+            question: faq.question,
+            answer: faq.answer,
+            category: faq.category,
+            isActive: true,
+          } as Omit<FAQ, 'id'>);
+          successCount++;
+        } catch (err) {
+          log.error('FAQ 저장 실패:', err);
+          failCount++;
+        }
+      }
+
+      await loadFAQs();
+      showToast(
+        `엑셀 업로드 완료: ${successCount}건 등록${failCount > 0 ? `, ${failCount}건 실패` : ''}`,
+        failCount > 0 ? 'warning' : 'success'
+      );
+    } catch (err) {
+      log.error('엑셀 파싱 실패:', err);
+      showToast('엑셀 파일 처리 중 오류가 발생했습니다.', 'error');
+    } finally {
+      setIsExcelUploading(false);
+      if (excelInputRef.current) excelInputRef.current.value = '';
+    }
+  };
 
   // Load documents from database on component mount
   useEffect(() => {
@@ -409,6 +478,24 @@ const DocumentManagement: React.FC<DocumentManagementProps> = ({ setFaqs }) => {
                 </svg>
                 DB 설정
               </button>
+              <button
+                onClick={() => excelInputRef.current?.click()}
+                disabled={isExcelUploading}
+                className="bg-emerald-600 text-white px-4 py-3 rounded-lg hover:bg-emerald-700 transition-all duration-200 flex items-center disabled:opacity-50"
+                title="엑셀 FAQ 업로드"
+              >
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                {isExcelUploading ? '업로드 중...' : '엑셀 FAQ'}
+              </button>
+              <input
+                ref={excelInputRef}
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={handleExcelUpload}
+                className="hidden"
+              />
               <button
                 onClick={() => setIsUploadModalOpen(true)}
                 className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-3 rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all duration-200 flex items-center"
