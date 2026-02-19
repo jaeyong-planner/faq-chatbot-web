@@ -4,7 +4,7 @@
  */
 
 const GEMINI_MODEL = 'gemini-2.0-flash';
-const EMBEDDING_MODEL = 'text-embedding-004';
+const EMBEDDING_MODEL = 'gemini-embedding-001';
 const EMBEDDING_DIMENSION = 768;
 const BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
 
@@ -40,6 +40,7 @@ export async function generateEmbedding(text: string): Promise<number[]> {
     body: JSON.stringify({
       model: `models/${EMBEDDING_MODEL}`,
       content: { parts: [{ text: text.trim() }] },
+      outputDimensionality: EMBEDDING_DIMENSION,
     }),
   });
 

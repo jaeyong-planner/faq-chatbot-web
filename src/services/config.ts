@@ -62,7 +62,7 @@ export interface AppConfig {
 
 export const defaultConfig: AppConfig = {
   embedding: {
-    geminiEmbeddingModel: 'text-embedding-004',
+    geminiEmbeddingModel: 'gemini-embedding-001',
     targetEmbeddingDimension: 768,
     embeddingCacheSize: 500,
     embeddingCacheTTL: 30 * 60 * 1000,
