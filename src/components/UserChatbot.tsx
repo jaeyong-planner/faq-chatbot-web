@@ -203,6 +203,7 @@ const UserChatbot: React.FC<UserChatbotProps> = ({ faqs = [], onGoToAdmin, selec
   const sessionCategoryRef = useRef<string | undefined>(undefined);
   const satisfactionRef = useRef<number | null>(null);
   const finalizeTriggeredRef = useRef<boolean>(false);
+  const sessionPersistedRef = useRef<boolean>(false);
 
   const [chatSessionId, setChatSessionId] = useState<string | null>(null);
   const [isSessionResolved, setIsSessionResolved] = useState(false);
@@ -211,7 +212,7 @@ const UserChatbot: React.FC<UserChatbotProps> = ({ faqs = [], onGoToAdmin, selec
   const [customerServiceInfo, setCustomerServiceInfo] = useState<CustomerServiceInfo>(DEFAULT_CUSTOMER_SERVICE);
 
   const updateSession = useCallback(async (updates: ChatSessionUpdateInput) => {
-    if (!chatSessionIdRef.current) {
+    if (!chatSessionIdRef.current || !sessionPersistedRef.current) {
       return;
     }
 
@@ -245,11 +246,14 @@ const UserChatbot: React.FC<UserChatbotProps> = ({ faqs = [], onGoToAdmin, selec
       return;
     }
 
+    // 첫 메시지 시 DB에 세션 생성 (지연 생성)
+    await ensureSessionPersisted();
+
     await persistMessage(chatSessionIdRef.current, payload);
 
     const estimatedCount = messagesRef.current.length + 1;
     await updateSession({ messageCount: estimatedCount });
-  }, [persistMessage, updateSession]);
+  }, [persistMessage, updateSession, ensureSessionPersisted]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -344,7 +348,7 @@ const UserChatbot: React.FC<UserChatbotProps> = ({ faqs = [], onGoToAdmin, selec
       return;
     }
 
-    if (!chatSessionIdRef.current) {
+    if (!chatSessionIdRef.current || !sessionPersistedRef.current) {
       return;
     }
 
@@ -382,45 +386,53 @@ const UserChatbot: React.FC<UserChatbotProps> = ({ faqs = [], onGoToAdmin, selec
     };
   }, [finalizeSession]);
 
+  // 세션 ID만 생성 (DB 저장은 첫 사용자 메시지 시점까지 지연)
   useEffect(() => {
-    const initializeSession = async () => {
-      const timestamp = new Date();
-      const randomBytes = crypto.getRandomValues(new Uint8Array(8));
-      const randomSuffix = Array.from(randomBytes, b => b.toString(16).padStart(2, '0')).join('');
-      const generatedSessionId = `sess_${timestamp.toISOString().replace(/[-:.TZ]/g, '')}_${randomSuffix}`;
+    const timestamp = new Date();
+    const randomBytes = crypto.getRandomValues(new Uint8Array(8));
+    const randomSuffix = Array.from(randomBytes, b => b.toString(16).padStart(2, '0')).join('');
+    const generatedSessionId = `sess_${timestamp.toISOString().replace(/[-:.TZ]/g, '')}_${randomSuffix}`;
 
-      sessionStartRef.current = timestamp;
+    sessionStartRef.current = timestamp;
+    setChatSessionId(generatedSessionId);
+  }, []);
 
-      try {
-        await dbService.createChatSession({
-          sessionId: generatedSessionId,
-          startTime: timestamp.toISOString(),
-          status: 'ongoing',
-          user: '익명 사용자',
-          userEmail: '',
-          tags: [],
-          isResolved: false,
-          category: sessionCategoryRef.current,
-          messageCount: 0
+  // 첫 사용자 메시지 시 DB에 세션 생성 + 인사 메시지 저장
+  const ensureSessionPersisted = useCallback(async () => {
+    if (sessionPersistedRef.current) return;
+
+    const sessionId = chatSessionIdRef.current;
+    const sessionStart = sessionStartRef.current;
+    if (!sessionId || !sessionStart) return;
+
+    try {
+      await dbService.createChatSession({
+        sessionId,
+        startTime: sessionStart.toISOString(),
+        status: 'ongoing',
+        user: '익명 사용자',
+        userEmail: '',
+        tags: [],
+        isResolved: false,
+        category: sessionCategoryRef.current,
+        messageCount: 0
+      });
+
+      sessionPersistedRef.current = true;
+
+      // 인사 메시지도 함께 저장
+      const initialMessage = initialBotMessageRef.current;
+      if (initialMessage) {
+        await persistMessage(sessionId, {
+          sender: 'bot',
+          message: initialMessage.text,
+          timestamp: initialMessage.timestamp,
+          messageType: 'text'
         });
-
-        setChatSessionId(generatedSessionId);
-
-        const initialMessage = initialBotMessageRef.current;
-        if (initialMessage) {
-          await persistMessage(generatedSessionId, {
-            sender: 'bot',
-            message: initialMessage.text,
-            timestamp: initialMessage.timestamp,
-            messageType: 'text'
-          });
-        }
-      } catch (error) {
-        log.error('채팅 세션 초기화 실패:', error);
       }
-    };
-
-    initializeSession();
+    } catch (error) {
+      log.error('채팅 세션 생성 실패:', error);
+    }
   }, [dbService, persistMessage]);
 
   // updateSession의 최신 참조를 유지하되, cleanup 재등록을 방지
