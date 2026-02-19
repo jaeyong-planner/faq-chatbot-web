@@ -12,7 +12,6 @@ import ChunkManagement from './components/ChunkManagement';
 import ChatLogs from './components/ChatLogs';
 import ChatLogAnalysis from './components/ChatLogAnalysis';
 import SystemSettings from './components/SystemSettings';
-import DatabaseSettings from './components/DatabaseSettings';
 import UserChatbot from './components/UserChatbot';
 
 function App() {
@@ -87,7 +86,6 @@ function App() {
       case '채팅 로그': return <ChatLogs />;
       case '채팅 분석': return <ChatLogAnalysis />;
       case '시스템 설정': return <SystemSettings />;
-      case '데이터베이스': return <DatabaseSettings isOpen={true} onClose={() => setCurrentPage('대시보드')} />;
       default: return <Dashboard />;
     }
   };

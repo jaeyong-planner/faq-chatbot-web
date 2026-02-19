@@ -123,7 +123,7 @@ export interface APIConfig {
   isActive: boolean;
 }
 
-export type Page = '대시보드' | '엠브레인Agent관리' | '문서 관리' | '청크 관리' | '채팅 로그' | '채팅 분석' | '시스템 설정' | '데이터베이스';
+export type Page = '대시보드' | '엠브레인Agent관리' | '문서 관리' | '청크 관리' | '채팅 로그' | '채팅 분석' | '시스템 설정';
 
 export interface RagAnalysisResult {
     faithfulness: number;
