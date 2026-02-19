@@ -95,13 +95,13 @@ function App() {
   return (
     <ErrorBoundary>
       <ToastProvider>
-        <div className="flex h-screen bg-gray-50">
+        <div className="min-h-screen bg-gray-50">
           <Sidebar
             currentPage={currentPage}
             setCurrentPage={setCurrentPage}
             onLogout={handleLogout}
           />
-          <main className="flex-1 overflow-auto">
+          <main className="lg:ml-64 min-h-screen overflow-auto">
             {renderPage()}
           </main>
         </div>
