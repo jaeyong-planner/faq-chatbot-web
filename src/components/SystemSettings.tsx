@@ -111,37 +111,57 @@ const SystemSettings: React.FC = () => {
     }
   }, []);
 
-  // 배치 임베딩 생성
+  // 배치 임베딩 생성 (클라이언트 사이드 - Vercel timeout 회피)
   const handleGenerateEmbeddings = async () => {
     setEmbeddingGenerating(true);
     setEmbeddingResult('');
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        showToast('로그인이 필요합니다.', 'error');
+      const webGeminiService = WebGeminiService.getInstance();
+
+      const allFaqs = await dbService.getAllFAQs();
+      const faqsNeedingEmbedding = allFaqs.filter(
+        (f) => f.isActive && (!f.questionEmbedding || f.questionEmbedding.length === 0)
+      );
+
+      if (faqsNeedingEmbedding.length === 0) {
+        setEmbeddingResult('모든 FAQ에 이미 임베딩이 생성되어 있습니다.');
         setEmbeddingGenerating(false);
         return;
       }
 
-      const response = await fetch('/api/admin/generate-embeddings', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
+      let successCount = 0;
+      let failCount = 0;
+
+      for (const faq of faqsNeedingEmbedding) {
+        try {
+          setEmbeddingResult(`임베딩 생성 중... (${successCount + failCount + 1}/${faqsNeedingEmbedding.length})`);
+
+          const [questionEmbedding, answerEmbedding] = await webGeminiService.generateBatchEmbeddings([
+            faq.question,
+            faq.answer
+          ]);
+
+          if (questionEmbedding?.length > 0 && answerEmbedding?.length > 0) {
+            await dbService.updateFAQ(faq.id, {
+              ...faq,
+              questionEmbedding,
+              answerEmbedding
+            });
+            successCount++;
+          } else {
+            failCount++;
+          }
+        } catch (error) {
+          log.error(`FAQ ${faq.id} 임베딩 생성 실패:`, error);
+          failCount++;
         }
-      });
-
-      const result = await response.json();
-
-      if (response.ok) {
-        setEmbeddingResult(result.message);
-        showToast(result.message, 'success');
-        await loadEmbeddingStats();
-      } else {
-        setEmbeddingResult(`오류: ${result.error}`);
-        showToast(`임베딩 생성 실패: ${result.error}`, 'error');
       }
+
+      const msg = `임베딩 생성 완료: ${successCount}건 성공${failCount > 0 ? `, ${failCount}건 실패` : ''}`;
+      setEmbeddingResult(msg);
+      showToast(msg, failCount > 0 ? 'warning' : 'success');
+      await loadEmbeddingStats();
     } catch (error: any) {
       const msg = error.message || '임베딩 생성 중 오류 발생';
       setEmbeddingResult(`오류: ${msg}`);
