@@ -3,12 +3,12 @@
  * FAQ 저장 시 백그라운드에서 자동으로 임베딩을 생성하고 DB에 저장
  */
 
-import { embeddingService } from './embeddingService';
-import { getSupabaseDatabaseService } from './supabase';
-import { createLogger } from './logger';
-import type { FAQ } from '../types';
+import { embeddingService } from "./embeddingService";
+import { getSupabaseDatabaseService } from "./supabase";
+import { createLogger } from "./logger";
+import type { FAQ } from "../types";
 
-const log = createLogger('autoEmbed');
+const log = createLogger("autoEmbed");
 
 class AutoEmbeddingService {
   async generateAndSaveFAQEmbeddings(faq: FAQ): Promise<void> {

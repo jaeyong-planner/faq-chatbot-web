@@ -1,46 +1,46 @@
-import { useState, useEffect } from 'react';
-import type { FAQ, Page } from './types';
-import { useAuth } from './hooks/useAuth';
-import ErrorBoundary from './components/ErrorBoundary';
-import { ToastProvider } from './components/Toast';
-import Login from './components/Login';
-import Sidebar from './components/Sidebar';
-import Dashboard from './components/Dashboard';
-import FaqManagement from './components/FaqManagement';
-import DocumentManagement from './components/DocumentManagement';
-import ChunkManagement from './components/ChunkManagement';
-import ChatLogs from './components/ChatLogs';
-import ChatLogAnalysis from './components/ChatLogAnalysis';
-import SystemSettings from './components/SystemSettings';
-import UserChatbot from './components/UserChatbot';
+import { useState, useEffect } from "react";
+import type { FAQ, Page } from "./types";
+import { useAuth } from "./hooks/useAuth";
+import ErrorBoundary from "./components/ErrorBoundary";
+import { ToastProvider } from "./components/Toast";
+import Login from "./components/Login";
+import Sidebar from "./components/Sidebar";
+import Dashboard from "./components/Dashboard";
+import FaqManagement from "./components/FaqManagement";
+import DocumentManagement from "./components/DocumentManagement";
+import ChunkManagement from "./components/ChunkManagement";
+import ChatLogs from "./components/ChatLogs";
+import ChatLogAnalysis from "./components/ChatLogAnalysis";
+import SystemSettings from "./components/SystemSettings";
+import UserChatbot from "./components/UserChatbot";
 
 function App() {
   const { user, loading, signOut } = useAuth();
-  const isAdminPath = window.location.pathname.startsWith('/admin');
-  const [currentView, setCurrentView] = useState<'login' | 'admin' | 'chatbot'>(
-    isAdminPath ? 'login' : 'chatbot'
+  const isAdminPath = window.location.pathname.startsWith("/admin");
+  const [currentView, setCurrentView] = useState<"login" | "admin" | "chatbot">(
+    isAdminPath ? "login" : "chatbot",
   );
-  const [currentPage, setCurrentPage] = useState<Page>('대시보드');
+  const [currentPage, setCurrentPage] = useState<Page>("대시보드");
   const [faqs, setFaqs] = useState<FAQ[]>([]);
 
   // Auth state + pathname → view switching
   useEffect(() => {
-    const onAdminPath = window.location.pathname.startsWith('/admin');
+    const onAdminPath = window.location.pathname.startsWith("/admin");
     if (!onAdminPath) {
-      setCurrentView('chatbot');
+      setCurrentView("chatbot");
       return;
     }
     if (user) {
-      setCurrentView('admin');
+      setCurrentView("admin");
     } else if (!loading) {
-      setCurrentView('login');
+      setCurrentView("login");
     }
   }, [user, loading]);
 
   const handleLogout = async () => {
     await signOut();
-    setCurrentView('login');
-    setCurrentPage('대시보드');
+    setCurrentView("login");
+    setCurrentPage("대시보드");
   };
 
   if (loading) {
@@ -55,7 +55,7 @@ function App() {
   }
 
   // Chatbot view (public)
-  if (currentView === 'chatbot') {
+  if (currentView === "chatbot") {
     return (
       <ErrorBoundary>
         <ToastProvider>
@@ -66,11 +66,15 @@ function App() {
   }
 
   // Login view
-  if (currentView === 'login' || !user) {
+  if (currentView === "login" || !user) {
     return (
       <ErrorBoundary>
         <ToastProvider>
-          <Login onLogin={(success) => { if (success) setCurrentView('admin'); }} />
+          <Login
+            onLogin={(success) => {
+              if (success) setCurrentView("admin");
+            }}
+          />
         </ToastProvider>
       </ErrorBoundary>
     );
@@ -79,14 +83,26 @@ function App() {
   // Admin panel with sidebar
   const renderPage = () => {
     switch (currentPage) {
-      case '대시보드': return <Dashboard onNavigateToChatLogs={() => setCurrentPage('채팅 로그')} />;
-      case '엠브레인Agent관리': return <FaqManagement faqs={faqs} setFaqs={setFaqs} />;
-      case '문서 관리': return <DocumentManagement setFaqs={setFaqs} />;
-      case '청크 관리': return <ChunkManagement />;
-      case '채팅 로그': return <ChatLogs />;
-      case '채팅 분석': return <ChatLogAnalysis />;
-      case '시스템 설정': return <SystemSettings />;
-      default: return <Dashboard onNavigateToChatLogs={() => setCurrentPage('채팅 로그')} />;
+      case "대시보드":
+        return (
+          <Dashboard onNavigateToChatLogs={() => setCurrentPage("채팅 로그")} />
+        );
+      case "엠브레인Agent관리":
+        return <FaqManagement faqs={faqs} setFaqs={setFaqs} />;
+      case "문서 관리":
+        return <DocumentManagement setFaqs={setFaqs} />;
+      case "청크 관리":
+        return <ChunkManagement />;
+      case "채팅 로그":
+        return <ChatLogs />;
+      case "채팅 분석":
+        return <ChatLogAnalysis />;
+      case "시스템 설정":
+        return <SystemSettings />;
+      default:
+        return (
+          <Dashboard onNavigateToChatLogs={() => setCurrentPage("채팅 로그")} />
+        );
     }
   };
 

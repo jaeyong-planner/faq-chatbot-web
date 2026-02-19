@@ -4,8 +4,8 @@
  * ElectronGeminiService와 동일한 인터페이스 제공 (싱글톤)
  */
 
-import { supabase } from './supabase/client';
-import type { GeminiAPIConfig } from '../types';
+import { supabase } from "./supabase/client";
+import type { GeminiAPIConfig } from "../types";
 
 interface DocumentAnalysisResult {
   summary: string;
@@ -46,12 +46,12 @@ interface ConversationMessage {
 
 export class WebGeminiService {
   private static instance: WebGeminiService;
-  private baseUrl: string = '/api/gemini';
+  private baseUrl: string = "/api/gemini";
   private config: GeminiAPIConfig = {
-    apiKey: '',
+    apiKey: "",
     isActive: false,
-    model: '',
-    baseUrl: '',
+    model: "",
+    baseUrl: "",
   };
 
   private constructor() {
@@ -90,7 +90,7 @@ export class WebGeminiService {
     }
 
     if (!session) {
-      throw new Error('No active session. Please login first.');
+      throw new Error("No active session. Please login first.");
     }
 
     return session.access_token;
@@ -101,9 +101,9 @@ export class WebGeminiService {
    */
   private async makeRequest<T>(
     endpoint: string,
-    method: 'GET' | 'POST',
+    method: "GET" | "POST",
     body?: any,
-    timeout: number = 30000
+    timeout: number = 30000,
   ): Promise<T> {
     try {
       const token = await this.getAuthToken();
@@ -115,13 +115,13 @@ export class WebGeminiService {
       const options: RequestInit = {
         method,
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
         signal: controller.signal,
       };
 
-      if (method === 'POST' && body) {
+      if (method === "POST" && body) {
         options.body = JSON.stringify(body);
       }
 
@@ -140,15 +140,15 @@ export class WebGeminiService {
 
         // HTTP 상태별 에러 처리
         if (response.status === 401) {
-          throw new Error('Authentication failed. Please login again.');
+          throw new Error("Authentication failed. Please login again.");
         } else if (response.status === 403) {
-          throw new Error('Permission denied. Invalid credentials.');
+          throw new Error("Permission denied. Invalid credentials.");
         } else if (response.status === 429) {
-          throw new Error('API rate limit exceeded. Please try again later.');
+          throw new Error("API rate limit exceeded. Please try again later.");
         } else if (response.status === 504) {
-          throw new Error('Request timeout. Please try again.');
+          throw new Error("Request timeout. Please try again.");
         } else if (response.status >= 500) {
-          throw new Error('Server error. Please try again later.');
+          throw new Error("Server error. Please try again later.");
         }
 
         throw new Error(errorMessage);
@@ -157,13 +157,18 @@ export class WebGeminiService {
       return await response.json();
     } catch (error: any) {
       // AbortController 타임아웃 처리
-      if (error.name === 'AbortError') {
+      if (error.name === "AbortError") {
         throw new Error(`Request timeout (${timeout / 1000}s)`);
       }
 
       // 네트워크 오류
-      if (error.message?.includes('fetch') || error.message?.includes('network')) {
-        throw new Error('Network error. Please check your internet connection.');
+      if (
+        error.message?.includes("fetch") ||
+        error.message?.includes("network")
+      ) {
+        throw new Error(
+          "Network error. Please check your internet connection.",
+        );
       }
 
       // 기타 에러는 그대로 전달
@@ -176,17 +181,15 @@ export class WebGeminiService {
    */
   async testConnection(): Promise<{ success: boolean; message: string }> {
     try {
-      const result = await this.makeRequest<{ success: boolean; message: string }>(
-        '/test-connection',
-        'GET',
-        undefined,
-        10000
-      );
+      const result = await this.makeRequest<{
+        success: boolean;
+        message: string;
+      }>("/test-connection", "GET", undefined, 10000);
       return result;
     } catch (error: any) {
       return {
         success: false,
-        message: error.message || 'Connection test failed',
+        message: error.message || "Connection test failed",
       };
     }
   }
@@ -196,10 +199,10 @@ export class WebGeminiService {
    */
   async generateEmbedding(text: string): Promise<number[]> {
     const result = await this.makeRequest<{ embedding: number[] }>(
-      '/generate-embedding',
-      'POST',
+      "/generate-embedding",
+      "POST",
       { text },
-      15000
+      15000,
     );
 
     return result.embedding;
@@ -210,10 +213,10 @@ export class WebGeminiService {
    */
   async generateBatchEmbeddings(texts: string[]): Promise<number[][]> {
     const result = await this.makeRequest<{ embeddings: number[][] }>(
-      '/generate-batch-embeddings',
-      'POST',
+      "/generate-batch-embeddings",
+      "POST",
       { texts },
-      30000
+      30000,
     );
 
     return result.embeddings;
@@ -222,12 +225,15 @@ export class WebGeminiService {
   /**
    * 문서 분석 및 FAQ 자동 생성
    */
-  async analyzeDocument(documentText: string, documentName?: string): Promise<DocumentAnalysisResult> {
+  async analyzeDocument(
+    documentText: string,
+    documentName?: string,
+  ): Promise<DocumentAnalysisResult> {
     const result = await this.makeRequest<DocumentAnalysisResult>(
-      '/analyze-document',
-      'POST',
+      "/analyze-document",
+      "POST",
       { documentText, documentName },
-      45000
+      45000,
     );
 
     return result;
@@ -239,13 +245,13 @@ export class WebGeminiService {
   async generateResponse(
     question: string,
     context: ContextItem[],
-    conversationHistory?: ConversationMessage[]
+    conversationHistory?: ConversationMessage[],
   ): Promise<GenerateResponseResult> {
     const result = await this.makeRequest<GenerateResponseResult>(
-      '/generate-response',
-      'POST',
+      "/generate-response",
+      "POST",
       { question, context, conversationHistory },
-      30000
+      30000,
     );
 
     return result;

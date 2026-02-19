@@ -1,4 +1,3 @@
-
 export interface FAQ {
   id: number;
   question: string;
@@ -22,7 +21,7 @@ export interface FAQ {
   semanticKeywords?: string[];
   relatedTopics?: string[];
   confidence?: number;
-  generationSource?: 'semantic_analysis' | 'manual' | 'template';
+  generationSource?: "semantic_analysis" | "manual" | "template";
 }
 
 export interface Category {
@@ -39,7 +38,7 @@ export interface ChatLog {
   isFlagged: boolean;
 }
 
-export type ChatSessionStatus = 'completed' | 'ongoing' | 'abandoned';
+export type ChatSessionStatus = "completed" | "ongoing" | "abandoned";
 
 export interface ChatSession {
   id: number;
@@ -84,7 +83,7 @@ export interface ChatSessionUpdateInput {
   userEmail?: string;
 }
 
-export type ChatMessageSender = 'user' | 'bot';
+export type ChatMessageSender = "user" | "bot";
 
 export interface ChatLogMessage {
   id: number;
@@ -92,7 +91,7 @@ export interface ChatLogMessage {
   timestamp: string;
   sender: ChatMessageSender;
   message: string;
-  messageType?: 'text' | 'file' | 'image';
+  messageType?: "text" | "file" | "image";
   responseTime?: number;
   confidence?: number;
   sourceFaq?: number;
@@ -103,7 +102,7 @@ export interface ChatLogMessageCreateInput {
   timestamp: string;
   sender: ChatMessageSender;
   message: string;
-  messageType?: 'text' | 'file' | 'image';
+  messageType?: "text" | "file" | "image";
   responseTime?: number;
   confidence?: number;
   sourceFaq?: number;
@@ -123,21 +122,28 @@ export interface APIConfig {
   isActive: boolean;
 }
 
-export type Page = '대시보드' | '엠브레인Agent관리' | '문서 관리' | '청크 관리' | '채팅 로그' | '채팅 분석' | '시스템 설정';
+export type Page =
+  | "대시보드"
+  | "엠브레인Agent관리"
+  | "문서 관리"
+  | "청크 관리"
+  | "채팅 로그"
+  | "채팅 분석"
+  | "시스템 설정";
 
 export interface RagAnalysisResult {
-    faithfulness: number;
-    relevance: number;
-    completeness: number;
-    explanation: string;
+  faithfulness: number;
+  relevance: number;
+  completeness: number;
+  explanation: string;
 }
 
 export interface ChatMessage {
   id: number;
   text: string;
-  sender: 'user' | 'bot';
+  sender: "user" | "bot";
   sourceFaq?: FAQ;
-  feedback?: 'helpful' | 'unhelpful' | null;
+  feedback?: "helpful" | "unhelpful" | null;
 }
 
 export interface DocumentImage {
@@ -162,7 +168,7 @@ export interface DocumentGraph {
   pageNumber?: number;
   title?: string;
   description?: string;
-  type?: 'bar' | 'line' | 'pie' | 'scatter' | 'other';
+  type?: "bar" | "line" | "pie" | "scatter" | "other";
   embeddings?: number[];
   metadata?: {
     width?: number;
@@ -180,7 +186,7 @@ export interface PDFDocument {
   name: string;
   size: string;
   uploadDate: string;
-  status: 'processing' | 'completed' | 'error';
+  status: "processing" | "completed" | "error";
   uploadMode: string;
   filePath?: string;
   ocrText?: string;
@@ -211,10 +217,10 @@ export interface PDFChunk {
     pageRange?: string;
     title?: string;
     summary?: string;
-    importance?: 'high' | 'medium' | 'low';
+    importance?: "high" | "medium" | "low";
     keywords?: string[];
     semanticKeywords?: string[];
-    chunkType?: 'paragraph' | 'section' | 'page' | 'heading' | 'content';
+    chunkType?: "paragraph" | "section" | "page" | "heading" | "content";
     type?: string;
     sectionName?: string;
     sectionIndex?: number;
@@ -239,7 +245,14 @@ export interface DocumentUploadProgress {
   documentId: number | string;
   fileName: string;
   progress: number;
-  stage: 'uploading' | 'processing' | 'extracting' | 'chunking' | 'generating_faqs' | 'completed' | 'error';
+  stage:
+    | "uploading"
+    | "processing"
+    | "extracting"
+    | "chunking"
+    | "generating_faqs"
+    | "completed"
+    | "error";
   error?: string;
 }
 

@@ -1,6 +1,6 @@
-import { supabase } from './client';
+import { supabase } from "./client";
 
-const STORAGE_BUCKET = 'documents';
+const STORAGE_BUCKET = "documents";
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
 /**
@@ -9,12 +9,12 @@ const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
  */
 function sanitizeFileName(fileName: string): string {
   // 파일 확장자 추출
-  const lastDot = fileName.lastIndexOf('.');
+  const lastDot = fileName.lastIndexOf(".");
   const name = lastDot !== -1 ? fileName.substring(0, lastDot) : fileName;
-  const ext = lastDot !== -1 ? fileName.substring(lastDot) : '';
+  const ext = lastDot !== -1 ? fileName.substring(lastDot) : "";
 
   // 특수문자 제거 (영문, 숫자, 하이픈, 언더스코어만 허용)
-  const safeName = name.replace(/[^a-zA-Z0-9가-힣_-]/g, '_');
+  const safeName = name.replace(/[^a-zA-Z0-9가-힣_-]/g, "_");
 
   // timestamp 추가
   const timestamp = Date.now();
@@ -32,25 +32,29 @@ export class SupabaseStorageService {
     try {
       // 파일 크기 제한 확인
       if (file.size > MAX_FILE_SIZE) {
-        throw new Error(`파일 크기가 ${MAX_FILE_SIZE / 1024 / 1024}MB를 초과합니다.`);
+        throw new Error(
+          `파일 크기가 ${MAX_FILE_SIZE / 1024 / 1024}MB를 초과합니다.`,
+        );
       }
 
       // 파일명 sanitize
       const sanitizedName = sanitizeFileName(file.name);
       const filePath = `uploads/${sanitizedName}`;
 
-      console.log(`[SupabaseStorage] 파일 업로드 시작: ${file.name} -> ${filePath}`);
+      console.log(
+        `[SupabaseStorage] 파일 업로드 시작: ${file.name} -> ${filePath}`,
+      );
 
       // Supabase Storage에 업로드
       const { data, error } = await supabase.storage
         .from(STORAGE_BUCKET)
         .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false
+          cacheControl: "3600",
+          upsert: false,
         });
 
       if (error) {
-        console.error('[SupabaseStorage] 업로드 실패:', error);
+        console.error("[SupabaseStorage] 업로드 실패:", error);
         throw error;
       }
 
@@ -63,10 +67,10 @@ export class SupabaseStorageService {
 
       return {
         path: data.path,
-        publicUrl: urlData.publicUrl
+        publicUrl: urlData.publicUrl,
       };
     } catch (error) {
-      console.error('[SupabaseStorage] upload 실패:', error);
+      console.error("[SupabaseStorage] upload 실패:", error);
       throw error;
     }
   }
@@ -86,19 +90,21 @@ export class SupabaseStorageService {
         .createSignedUrl(path, expiresIn);
 
       if (error) {
-        console.error('[SupabaseStorage] signed URL 생성 실패:', error);
+        console.error("[SupabaseStorage] signed URL 생성 실패:", error);
         throw error;
       }
 
       if (!data?.signedUrl) {
-        throw new Error('Signed URL 생성 실패');
+        throw new Error("Signed URL 생성 실패");
       }
 
-      console.log(`[SupabaseStorage] signed URL 생성 성공 (유효 시간: ${expiresIn}초)`);
+      console.log(
+        `[SupabaseStorage] signed URL 생성 성공 (유효 시간: ${expiresIn}초)`,
+      );
 
       return data.signedUrl;
     } catch (error) {
-      console.error('[SupabaseStorage] download 실패:', error);
+      console.error("[SupabaseStorage] download 실패:", error);
       throw error;
     }
   }
@@ -117,7 +123,7 @@ export class SupabaseStorageService {
         .remove([path]);
 
       if (error) {
-        console.error('[SupabaseStorage] 삭제 실패:', error);
+        console.error("[SupabaseStorage] 삭제 실패:", error);
         throw error;
       }
 
@@ -125,7 +131,7 @@ export class SupabaseStorageService {
 
       return true;
     } catch (error) {
-      console.error('[SupabaseStorage] delete 실패:', error);
+      console.error("[SupabaseStorage] delete 실패:", error);
       throw error;
     }
   }
@@ -136,9 +142,7 @@ export class SupabaseStorageService {
    * @returns public URL
    */
   getPublicUrl(path: string): string {
-    const { data } = supabase.storage
-      .from(STORAGE_BUCKET)
-      .getPublicUrl(path);
+    const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
 
     return data.publicUrl;
   }
@@ -157,7 +161,7 @@ export class SupabaseStorageService {
         .remove(paths);
 
       if (error) {
-        console.error('[SupabaseStorage] 다중 삭제 실패:', error);
+        console.error("[SupabaseStorage] 다중 삭제 실패:", error);
         throw error;
       }
 
@@ -165,7 +169,7 @@ export class SupabaseStorageService {
 
       return true;
     } catch (error) {
-      console.error('[SupabaseStorage] deleteMultiple 실패:', error);
+      console.error("[SupabaseStorage] deleteMultiple 실패:", error);
       throw error;
     }
   }
@@ -175,7 +179,7 @@ export class SupabaseStorageService {
    * @param folder - 폴더 경로 (기본값: 'uploads')
    * @returns 파일 목록
    */
-  async listFiles(folder: string = 'uploads'): Promise<any[]> {
+  async listFiles(folder: string = "uploads"): Promise<any[]> {
     try {
       console.log(`[SupabaseStorage] 파일 목록 조회 중: ${folder}`);
 
@@ -184,11 +188,11 @@ export class SupabaseStorageService {
         .list(folder, {
           limit: 100,
           offset: 0,
-          sortBy: { column: 'created_at', order: 'desc' }
+          sortBy: { column: "created_at", order: "desc" },
         });
 
       if (error) {
-        console.error('[SupabaseStorage] 파일 목록 조회 실패:', error);
+        console.error("[SupabaseStorage] 파일 목록 조회 실패:", error);
         throw error;
       }
 
@@ -196,7 +200,7 @@ export class SupabaseStorageService {
 
       return data;
     } catch (error) {
-      console.error('[SupabaseStorage] listFiles 실패:', error);
+      console.error("[SupabaseStorage] listFiles 실패:", error);
       throw error;
     }
   }

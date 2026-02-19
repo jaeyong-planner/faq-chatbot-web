@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import { Session, User, AuthError } from '@supabase/supabase-js';
-import { supabase } from '../services/supabase/client';
+import { useState, useEffect } from "react";
+import { Session, User, AuthError } from "@supabase/supabase-js";
+import { supabase } from "../services/supabase/client";
 
 interface AuthResult {
   error?: AuthError;
@@ -42,7 +42,10 @@ export function useAuth(): UseAuthReturn {
     };
   }, []);
 
-  const signIn = async (email: string, password: string): Promise<AuthResult> => {
+  const signIn = async (
+    email: string,
+    password: string,
+  ): Promise<AuthResult> => {
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -50,7 +53,10 @@ export function useAuth(): UseAuthReturn {
     return { error: error ?? undefined };
   };
 
-  const signUp = async (email: string, password: string): Promise<AuthResult> => {
+  const signUp = async (
+    email: string,
+    password: string,
+  ): Promise<AuthResult> => {
     const { error } = await supabase.auth.signUp({
       email,
       password,

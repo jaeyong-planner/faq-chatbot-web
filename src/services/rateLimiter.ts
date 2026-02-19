@@ -3,8 +3,8 @@
  * Token bucket algorithm for API rate limiting
  */
 
-import { createLogger } from './logger';
-type Provider = 'gemini' | 'openai';
+import { createLogger } from "./logger";
+type Provider = "gemini" | "openai";
 
 interface TokenBucket {
   tokens: number;
@@ -13,23 +13,23 @@ interface TokenBucket {
   lastRefill: number;
 }
 
-const log = createLogger('rateLimiter');
+const log = createLogger("rateLimiter");
 class RateLimiter {
   private buckets: Map<Provider, TokenBucket> = new Map();
 
   constructor() {
-    this.buckets.set('gemini', {
+    this.buckets.set("gemini", {
       tokens: 10,
       maxTokens: 10,
       refillRate: 10,
-      lastRefill: Date.now()
+      lastRefill: Date.now(),
     });
 
-    this.buckets.set('openai', {
+    this.buckets.set("openai", {
       tokens: 20,
       maxTokens: 20,
       refillRate: 20,
-      lastRefill: Date.now()
+      lastRefill: Date.now(),
     });
   }
 

@@ -2,7 +2,7 @@
  * 중앙 집중식 로거 유틸리티
  */
 
-type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+type LogLevel = "debug" | "info" | "warn" | "error";
 
 const LOG_LEVELS: Record<LogLevel, number> = {
   debug: 0,
@@ -12,7 +12,7 @@ const LOG_LEVELS: Record<LogLevel, number> = {
 };
 
 const isProduction = import.meta.env?.PROD ?? false;
-const MIN_LOG_LEVEL: LogLevel = isProduction ? 'warn' : 'debug';
+const MIN_LOG_LEVEL: LogLevel = isProduction ? "warn" : "debug";
 
 function shouldLog(level: LogLevel): boolean {
   return LOG_LEVELS[level] >= LOG_LEVELS[MIN_LOG_LEVEL];
@@ -34,22 +34,22 @@ export function createLogger(tag: string): Logger {
 
   return {
     debug: (...args: unknown[]) => {
-      if (shouldLog('debug')) {
+      if (shouldLog("debug")) {
         console.log(`${formatTimestamp()} ${prefix}`, ...args);
       }
     },
     info: (...args: unknown[]) => {
-      if (shouldLog('info')) {
+      if (shouldLog("info")) {
         console.log(`${formatTimestamp()} ${prefix}`, ...args);
       }
     },
     warn: (...args: unknown[]) => {
-      if (shouldLog('warn')) {
+      if (shouldLog("warn")) {
         console.warn(`${formatTimestamp()} ${prefix}`, ...args);
       }
     },
     error: (...args: unknown[]) => {
-      if (shouldLog('error')) {
+      if (shouldLog("error")) {
         console.error(`${formatTimestamp()} ${prefix}`, ...args);
       }
     },

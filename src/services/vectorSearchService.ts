@@ -4,17 +4,23 @@
  * 클라이언트 코사인 유사도 → 서버사이드 pgvector HNSW 인덱스
  */
 
-import { createLogger } from './logger';
-import type { FAQ, PDFDocument, PDFChunk, DocumentImage, DocumentGraph } from '../types';
-import { embeddingService } from './embeddingService';
-import { supabase } from './supabase/client';
-import { getSupabaseDatabaseService } from './supabase';
+import { createLogger } from "./logger";
+import type {
+  FAQ,
+  PDFDocument,
+  PDFChunk,
+  DocumentImage,
+  DocumentGraph,
+} from "../types";
+import { embeddingService } from "./embeddingService";
+import { supabase } from "./supabase/client";
+import { getSupabaseDatabaseService } from "./supabase";
 
-const log = createLogger('vectorSearch');
+const log = createLogger("vectorSearch");
 
 export interface VectorSearchResult {
   item: FAQ | PDFDocument | PDFChunk | DocumentImage | DocumentGraph;
-  type: 'faq' | 'document' | 'chunk' | 'image' | 'graph';
+  type: "faq" | "document" | "chunk" | "image" | "graph";
   similarity: number;
   score: number;
   sourceDocument?: PDFDocument;
@@ -53,7 +59,7 @@ export class VectorSearchService {
       includeChunks?: boolean;
       includeImages?: boolean;
       includeGraphs?: boolean;
-    } = {}
+    } = {},
   ): Promise<VectorSearchResult[]> {
     const {
       limit = 10,
@@ -62,7 +68,7 @@ export class VectorSearchService {
       includeDocuments = true,
       includeChunks = true,
       includeImages = true,
-      includeGraphs = true
+      includeGraphs = true,
     } = options;
 
     try {
@@ -71,10 +77,10 @@ export class VectorSearchService {
       const queryEmbedding = await Promise.race([
         embeddingService.generateEmbedding(query),
         new Promise<number[]>((_, reject) =>
-          setTimeout(() => reject(new Error('임베딩 생성 타임아웃')), 10000)
-        )
+          setTimeout(() => reject(new Error("임베딩 생성 타임아웃")), 10000),
+        ),
       ]).catch(() => {
-        log.warn('임베딩 생성 실패, 해시 기반 임베딩 사용');
+        log.warn("임베딩 생성 실패, 해시 기반 임베딩 사용");
         isHashEmbedding = true;
         return embeddingService.generateHashEmbedding(query);
       });
@@ -85,7 +91,7 @@ export class VectorSearchService {
 
       // 해시 임베딩은 의미적 유사도를 반영하지 않으므로 키워드 매칭으로 전환
       if (isHashEmbedding) {
-        log.warn('⚠️ 해시 기반 임베딩 사용 중 - 키워드 매칭으로 전환');
+        log.warn("⚠️ 해시 기반 임베딩 사용 중 - 키워드 매칭으로 전환");
         return this.keywordOnlySearch(query, limit);
       }
 
@@ -98,9 +104,9 @@ export class VectorSearchService {
           Promise.race([
             this.searchFAQs(queryEmbedding, query, minSimilarity, limit),
             new Promise<VectorSearchResult[]>((resolve) =>
-              setTimeout(() => resolve([]), timeout)
-            )
-          ])
+              setTimeout(() => resolve([]), timeout),
+            ),
+          ]),
         );
       }
 
@@ -109,9 +115,9 @@ export class VectorSearchService {
           Promise.race([
             this.searchDocuments(queryEmbedding, minSimilarity),
             new Promise<VectorSearchResult[]>((resolve) =>
-              setTimeout(() => resolve([]), timeout)
-            )
-          ])
+              setTimeout(() => resolve([]), timeout),
+            ),
+          ]),
         );
       }
 
@@ -120,20 +126,24 @@ export class VectorSearchService {
           Promise.race([
             this.searchChunks(queryEmbedding, query, minSimilarity, limit),
             new Promise<VectorSearchResult[]>((resolve) =>
-              setTimeout(() => resolve([]), timeout)
-            )
-          ])
+              setTimeout(() => resolve([]), timeout),
+            ),
+          ]),
         );
       }
 
       if (includeImages || includeGraphs) {
         searchPromises.push(
           Promise.race([
-            this.searchMediaContent(queryEmbedding, includeImages, includeGraphs),
+            this.searchMediaContent(
+              queryEmbedding,
+              includeImages,
+              includeGraphs,
+            ),
             new Promise<VectorSearchResult[]>((resolve) =>
-              setTimeout(() => resolve([]), timeout)
-            )
-          ])
+              setTimeout(() => resolve([]), timeout),
+            ),
+          ]),
         );
       }
 
@@ -142,11 +152,11 @@ export class VectorSearchService {
 
       // 3. 유사도 기준 정렬 및 필터링
       return results
-        .filter(result => result.similarity >= minSimilarity)
+        .filter((result) => result.similarity >= minSimilarity)
         .sort((a, b) => b.score - a.score)
         .slice(0, limit);
     } catch (error) {
-      log.error('벡터 검색 실패:', error);
+      log.error("벡터 검색 실패:", error);
       return [];
     }
   }
@@ -158,30 +168,35 @@ export class VectorSearchService {
     queryEmbedding: number[],
     queryText: string,
     threshold: number,
-    maxResults: number
+    maxResults: number,
   ): Promise<VectorSearchResult[]> {
     try {
       const queryLower = queryText.toLowerCase();
-      const embeddingStr = `[${queryEmbedding.join(',')}]`;
+      const embeddingStr = `[${queryEmbedding.join(",")}]`;
 
       // 1차: RPC 함수 시도
       const [questionRes, answerRes] = await Promise.all([
-        supabase.rpc('search_faqs_by_question', {
+        supabase.rpc("search_faqs_by_question", {
           query_embedding: embeddingStr,
           similarity_threshold: threshold,
-          match_count: maxResults
+          match_count: maxResults,
         }),
-        supabase.rpc('search_faqs_by_answer', {
+        supabase.rpc("search_faqs_by_answer", {
           query_embedding: embeddingStr,
           similarity_threshold: threshold,
-          match_count: maxResults
-        })
+          match_count: maxResults,
+        }),
       ]);
 
       // RPC 함수가 존재하지 않으면 클라이언트 사이드 Fallback
       if (questionRes.error || answerRes.error) {
-        log.warn('RPC 함수 호출 실패, 클라이언트 사이드 벡터 검색으로 전환');
-        return this.searchFAQsClientSide(queryEmbedding, queryText, threshold, maxResults);
+        log.warn("RPC 함수 호출 실패, 클라이언트 사이드 벡터 검색으로 전환");
+        return this.searchFAQsClientSide(
+          queryEmbedding,
+          queryText,
+          threshold,
+          maxResults,
+        );
       }
 
       const results: VectorSearchResult[] = [];
@@ -194,21 +209,21 @@ export class VectorSearchService {
 
           if (row.semantic_keywords && Array.isArray(row.semantic_keywords)) {
             const keywordMatch = row.semantic_keywords.some((kw: string) =>
-              queryLower.includes(kw.toLowerCase())
+              queryLower.includes(kw.toLowerCase()),
             );
             if (keywordMatch) score *= 1.15;
           }
-          if (row.generation_source === 'semantic_analysis') score *= 1.1;
+          if (row.generation_source === "semantic_analysis") score *= 1.1;
           if (row.confidence && row.confidence > 0) {
-            score *= (0.8 + row.confidence * 0.2);
+            score *= 0.8 + row.confidence * 0.2;
           }
 
           seenIds.add(row.id);
           results.push({
             item: this.mapFaqRow(row),
-            type: 'faq',
+            type: "faq",
             similarity: row.similarity,
-            score
+            score,
           });
         }
       }
@@ -217,31 +232,41 @@ export class VectorSearchService {
       if (answerRes.data) {
         for (const row of answerRes.data) {
           if (seenIds.has(row.id)) {
-            const existing = results.find(r => r.type === 'faq' && (r.item as FAQ).id === row.id);
+            const existing = results.find(
+              (r) => r.type === "faq" && (r.item as FAQ).id === row.id,
+            );
             const answerScore = row.similarity * 0.8;
             if (existing && answerScore > existing.score) {
               existing.score = answerScore;
-              existing.similarity = Math.max(existing.similarity, row.similarity);
+              existing.similarity = Math.max(
+                existing.similarity,
+                row.similarity,
+              );
             }
             continue;
           }
 
           let score = row.similarity * 0.8;
-          if (row.generation_source === 'semantic_analysis') score *= 1.05;
+          if (row.generation_source === "semantic_analysis") score *= 1.05;
 
           results.push({
             item: this.mapFaqRow(row),
-            type: 'faq',
+            type: "faq",
             similarity: row.similarity,
-            score
+            score,
           });
         }
       }
 
       return results;
     } catch (error) {
-      log.error('FAQ RPC 검색 실패, 클라이언트 사이드 전환:', error);
-      return this.searchFAQsClientSide(queryEmbedding, queryText, threshold, maxResults);
+      log.error("FAQ RPC 검색 실패, 클라이언트 사이드 전환:", error);
+      return this.searchFAQsClientSide(
+        queryEmbedding,
+        queryText,
+        threshold,
+        maxResults,
+      );
     }
   }
 
@@ -253,12 +278,12 @@ export class VectorSearchService {
     queryEmbedding: number[],
     queryText: string,
     threshold: number,
-    maxResults: number
+    maxResults: number,
   ): Promise<VectorSearchResult[]> {
     try {
       const dbService = getSupabaseDatabaseService();
       const allFAQs = await dbService.getAllFAQs();
-      const activeFAQs = allFAQs.filter(faq => faq.isActive);
+      const activeFAQs = allFAQs.filter((faq) => faq.isActive);
       const queryLower = queryText.toLowerCase();
       const results: VectorSearchResult[] = [];
 
@@ -268,7 +293,10 @@ export class VectorSearchService {
 
         // 질문 임베딩 유사도 계산
         if (faq.questionEmbedding && faq.questionEmbedding.length > 0) {
-          const qSim = this.cosineSimilarity(queryEmbedding, faq.questionEmbedding);
+          const qSim = this.cosineSimilarity(
+            queryEmbedding,
+            faq.questionEmbedding,
+          );
           if (qSim > bestSimilarity) {
             bestSimilarity = qSim;
             isQuestionMatch = true;
@@ -277,7 +305,10 @@ export class VectorSearchService {
 
         // 답변 임베딩 유사도 계산
         if (faq.answerEmbedding && faq.answerEmbedding.length > 0) {
-          const aSim = this.cosineSimilarity(queryEmbedding, faq.answerEmbedding);
+          const aSim = this.cosineSimilarity(
+            queryEmbedding,
+            faq.answerEmbedding,
+          );
           if (aSim > bestSimilarity) {
             bestSimilarity = aSim;
             isQuestionMatch = false;
@@ -289,30 +320,28 @@ export class VectorSearchService {
 
           if (faq.semanticKeywords && Array.isArray(faq.semanticKeywords)) {
             const keywordMatch = faq.semanticKeywords.some((kw: string) =>
-              queryLower.includes(kw.toLowerCase())
+              queryLower.includes(kw.toLowerCase()),
             );
             if (keywordMatch) score *= 1.15;
           }
 
-          if (faq.generationSource === 'semantic_analysis') score *= 1.1;
+          if (faq.generationSource === "semantic_analysis") score *= 1.1;
           if (faq.confidence && faq.confidence > 0) {
-            score *= (0.8 + faq.confidence * 0.2);
+            score *= 0.8 + faq.confidence * 0.2;
           }
 
           results.push({
             item: faq,
-            type: 'faq',
+            type: "faq",
             similarity: bestSimilarity,
-            score
+            score,
           });
         }
       }
 
-      return results
-        .sort((a, b) => b.score - a.score)
-        .slice(0, maxResults);
+      return results.sort((a, b) => b.score - a.score).slice(0, maxResults);
     } catch (error) {
-      log.error('클라이언트 사이드 FAQ 검색 실패:', error);
+      log.error("클라이언트 사이드 FAQ 검색 실패:", error);
       return [];
     }
   }
@@ -322,19 +351,19 @@ export class VectorSearchService {
    */
   private async searchDocuments(
     queryEmbedding: number[],
-    threshold: number
+    threshold: number,
   ): Promise<VectorSearchResult[]> {
     try {
-      const embeddingStr = `[${queryEmbedding.join(',')}]`;
+      const embeddingStr = `[${queryEmbedding.join(",")}]`;
 
-      const { data, error } = await supabase.rpc('search_documents_by_name', {
+      const { data, error } = await supabase.rpc("search_documents_by_name", {
         query_embedding: embeddingStr,
         similarity_threshold: threshold,
-        match_count: 5
+        match_count: 5,
       });
 
       if (error) {
-        log.warn('문서 검색 RPC 오류 (함수 미존재 가능):', error.message);
+        log.warn("문서 검색 RPC 오류 (함수 미존재 가능):", error.message);
         return [];
       }
 
@@ -346,14 +375,14 @@ export class VectorSearchService {
           uploadDate: row.upload_date,
           status: row.status,
           uploadMode: row.upload_mode,
-          filePath: row.file_path
+          filePath: row.file_path,
         } as PDFDocument,
-        type: 'document' as const,
+        type: "document" as const,
         similarity: row.similarity,
-        score: row.similarity * 1.0
+        score: row.similarity * 1.0,
       }));
     } catch (error) {
-      log.error('문서 검색 실패:', error);
+      log.error("문서 검색 실패:", error);
       return [];
     }
   }
@@ -365,20 +394,20 @@ export class VectorSearchService {
     queryEmbedding: number[],
     queryText: string,
     threshold: number,
-    maxResults: number
+    maxResults: number,
   ): Promise<VectorSearchResult[]> {
     try {
-      const embeddingStr = `[${queryEmbedding.join(',')}]`;
+      const embeddingStr = `[${queryEmbedding.join(",")}]`;
       const queryLower = queryText.toLowerCase();
 
-      const { data, error } = await supabase.rpc('search_chunks', {
+      const { data, error } = await supabase.rpc("search_chunks", {
         query_embedding: embeddingStr,
         similarity_threshold: threshold,
-        match_count: maxResults
+        match_count: maxResults,
       });
 
       if (error) {
-        log.warn('청크 검색 RPC 오류 (함수 미존재 가능):', error.message);
+        log.warn("청크 검색 RPC 오류 (함수 미존재 가능):", error.message);
         return [];
       }
 
@@ -386,15 +415,15 @@ export class VectorSearchService {
         let score = row.similarity * 0.9;
         const metadata = row.metadata || {};
 
-        if (metadata.importance === 'high') score *= 1.2;
-        else if (metadata.importance === 'medium') score *= 1.05;
+        if (metadata.importance === "high") score *= 1.2;
+        else if (metadata.importance === "medium") score *= 1.05;
 
-        if (metadata.chunkType === 'page') score *= 1.15;
-        else if (metadata.chunkType === 'heading') score *= 1.1;
+        if (metadata.chunkType === "page") score *= 1.15;
+        else if (metadata.chunkType === "heading") score *= 1.1;
 
         if (metadata.keywords && Array.isArray(metadata.keywords)) {
           const keywordMatch = metadata.keywords.some((kw: string) =>
-            queryLower.includes(kw.toLowerCase())
+            queryLower.includes(kw.toLowerCase()),
           );
           if (keywordMatch) score *= 1.2;
         }
@@ -406,15 +435,15 @@ export class VectorSearchService {
             content: row.content,
             pageNumber: row.page_number,
             chunkIndex: row.chunk_index,
-            metadata: row.metadata
+            metadata: row.metadata,
           } as PDFChunk,
-          type: 'chunk' as const,
+          type: "chunk" as const,
           similarity: row.similarity,
-          score
+          score,
         };
       });
     } catch (error) {
-      log.error('청크 검색 실패:', error);
+      log.error("청크 검색 실패:", error);
       return [];
     }
   }
@@ -425,7 +454,7 @@ export class VectorSearchService {
   private async searchMediaContent(
     queryEmbedding: number[],
     includeImages: boolean,
-    includeGraphs: boolean
+    includeGraphs: boolean,
   ): Promise<VectorSearchResult[]> {
     try {
       const dbService = getSupabaseDatabaseService();
@@ -436,14 +465,17 @@ export class VectorSearchService {
         if (includeImages && doc.metadata?.images) {
           for (const image of doc.metadata.images) {
             if (image.embeddings && image.embeddings.length > 0) {
-              const similarity = this.cosineSimilarity(queryEmbedding, image.embeddings);
+              const similarity = this.cosineSimilarity(
+                queryEmbedding,
+                image.embeddings,
+              );
               if (similarity >= FAQ_MIN_SIMILARITY) {
                 results.push({
                   item: image,
-                  type: 'image',
+                  type: "image",
                   similarity,
                   score: similarity * 1.0,
-                  sourceDocument: doc
+                  sourceDocument: doc,
                 });
               }
             }
@@ -453,14 +485,17 @@ export class VectorSearchService {
         if (includeGraphs && doc.metadata?.graphs) {
           for (const graph of doc.metadata.graphs) {
             if (graph.embeddings && graph.embeddings.length > 0) {
-              const similarity = this.cosineSimilarity(queryEmbedding, graph.embeddings);
+              const similarity = this.cosineSimilarity(
+                queryEmbedding,
+                graph.embeddings,
+              );
               if (similarity >= FAQ_MIN_SIMILARITY) {
                 results.push({
                   item: graph,
-                  type: 'graph',
+                  type: "graph",
                   similarity,
                   score: similarity * 1.1,
-                  sourceDocument: doc
+                  sourceDocument: doc,
                 });
               }
             }
@@ -470,7 +505,7 @@ export class VectorSearchService {
 
       return results;
     } catch (error) {
-      log.error('미디어 검색 실패:', error);
+      log.error("미디어 검색 실패:", error);
       return [];
     }
   }
@@ -480,16 +515,18 @@ export class VectorSearchService {
    */
   private async keywordOnlySearch(
     queryText: string,
-    limit: number
+    limit: number,
   ): Promise<VectorSearchResult[]> {
     try {
       const dbService = getSupabaseDatabaseService();
       const allFAQs = await dbService.getAllFAQs();
-      const activeFAQs = allFAQs.filter(faq => faq.isActive);
+      const activeFAQs = allFAQs.filter((faq) => faq.isActive);
       const queryLower = queryText.toLowerCase().trim();
       const results: VectorSearchResult[] = [];
 
-      const queryWords = queryLower.split(/[\s,?!.]+/).filter(w => w.length >= 2);
+      const queryWords = queryLower
+        .split(/[\s,?!.]+/)
+        .filter((w) => w.length >= 2);
 
       for (const faq of activeFAQs) {
         const questionLower = faq.question.toLowerCase();
@@ -497,54 +534,69 @@ export class VectorSearchService {
         let similarity = 0;
 
         // 직접 포함 매칭
-        if (queryLower.length >= 3 && (
-          questionLower.includes(queryLower) ||
-          queryLower.includes(questionLower)
-        )) {
-          const matchRatio = Math.min(queryLower.length, questionLower.length) / Math.max(queryLower.length, questionLower.length);
+        if (
+          queryLower.length >= 3 &&
+          (questionLower.includes(queryLower) ||
+            queryLower.includes(questionLower))
+        ) {
+          const matchRatio =
+            Math.min(queryLower.length, questionLower.length) /
+            Math.max(queryLower.length, questionLower.length);
           similarity = Math.min(matchRatio * 1.2, 1.0);
         }
 
         // 단어 단위 매칭
         if (similarity === 0 && queryWords.length > 0) {
-          const matchedWords = queryWords.filter(w =>
-            questionLower.includes(w) || answerLower.includes(w)
+          const matchedWords = queryWords.filter(
+            (w) => questionLower.includes(w) || answerLower.includes(w),
           );
           if (matchedWords.length > 0) {
             const wordRatio = matchedWords.length / queryWords.length;
-            const charRatio = matchedWords.join('').length / queryLower.replace(/[\s,?!.]+/g, '').length;
-            similarity = Math.min((wordRatio * 0.6 + charRatio * 0.4) * 0.9, 0.85);
+            const charRatio =
+              matchedWords.join("").length /
+              queryLower.replace(/[\s,?!.]+/g, "").length;
+            similarity = Math.min(
+              (wordRatio * 0.6 + charRatio * 0.4) * 0.9,
+              0.85,
+            );
           }
         }
 
         // 의미 키워드 매칭
-        if (similarity === 0 && faq.semanticKeywords && faq.semanticKeywords.length > 0) {
-          const keywordMatch = faq.semanticKeywords.some(kw =>
-            queryLower.includes(kw.toLowerCase()) && kw.length >= 2
+        if (
+          similarity === 0 &&
+          faq.semanticKeywords &&
+          faq.semanticKeywords.length > 0
+        ) {
+          const keywordMatch = faq.semanticKeywords.some(
+            (kw) => queryLower.includes(kw.toLowerCase()) && kw.length >= 2,
           );
           if (keywordMatch) similarity = 0.6;
         }
 
         // 카테고리 매칭
-        if (similarity === 0 && faq.category && queryLower.includes(faq.category.toLowerCase()) && faq.category.length >= 2) {
+        if (
+          similarity === 0 &&
+          faq.category &&
+          queryLower.includes(faq.category.toLowerCase()) &&
+          faq.category.length >= 2
+        ) {
           similarity = 0.5;
         }
 
         if (similarity >= FAQ_MIN_SIMILARITY) {
           results.push({
             item: faq,
-            type: 'faq',
+            type: "faq",
             similarity,
-            score: similarity
+            score: similarity,
           });
         }
       }
 
-      return results
-        .sort((a, b) => b.score - a.score)
-        .slice(0, limit);
+      return results.sort((a, b) => b.score - a.score).slice(0, limit);
     } catch (error) {
-      log.error('키워드 검색 실패:', error);
+      log.error("키워드 검색 실패:", error);
       return [];
     }
   }
@@ -559,10 +611,10 @@ export class VectorSearchService {
       includeChunks: false,
       includeImages: false,
       includeGraphs: false,
-      minSimilarity: FAQ_MIN_SIMILARITY
+      minSimilarity: FAQ_MIN_SIMILARITY,
     });
 
-    if (results.length > 0 && results[0].type === 'faq') {
+    if (results.length > 0 && results[0].type === "faq") {
       return results[0].item as FAQ;
     }
 
@@ -582,10 +634,10 @@ export class VectorSearchService {
       confidence: row.confidence,
       generationSource: row.generation_source,
       documentId: row.document_id,
-      imageUrl: '',
-      linkUrl: '',
-      attachmentUrl: '',
-      attachmentName: ''
+      imageUrl: "",
+      linkUrl: "",
+      attachmentUrl: "",
+      attachmentName: "",
     };
   }
 

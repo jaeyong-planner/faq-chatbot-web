@@ -4,10 +4,15 @@
  * Body: { documentText: string, documentName?: string }
  */
 
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getGeminiClient, getGeminiModel } from './_lib/geminiClient.js';
-import { extractToken, validateToken, parseRequestBody, validateRequiredFields } from './_lib/validateRequest.js';
-import { FAQ_GENERATION_PERSONA } from './_lib/personaPrompt.js';
+import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { getGeminiClient, getGeminiModel } from "./_lib/geminiClient.js";
+import {
+  extractToken,
+  validateToken,
+  parseRequestBody,
+  validateRequiredFields,
+} from "./_lib/validateRequest.js";
+import { FAQ_GENERATION_PERSONA } from "./_lib/personaPrompt.js";
 
 interface DocumentAnalysisResult {
   summary: string;
@@ -28,43 +33,48 @@ interface DocumentAnalysisResult {
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS 헤더 설정
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return res.status(200).end();
   }
 
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
   }
 
   try {
     // JWT 토큰 검증
     const token = extractToken(req);
     if (!token) {
-      return res.status(401).json({ error: 'Authorization token required' });
+      return res.status(401).json({ error: "Authorization token required" });
     }
 
     const validation = await validateToken(token);
     if (!validation.valid) {
-      return res.status(401).json({ error: validation.error || 'Invalid token' });
+      return res
+        .status(401)
+        .json({ error: validation.error || "Invalid token" });
     }
 
     // 요청 body 파싱
-    const body = await parseRequestBody<{ documentText: string; documentName?: string }>(req);
+    const body = await parseRequestBody<{
+      documentText: string;
+      documentName?: string;
+    }>(req);
 
     // 필수 필드 검증
-    const fieldsValidation = validateRequiredFields(body, ['documentText']);
+    const fieldsValidation = validateRequiredFields(body, ["documentText"]);
     if (!fieldsValidation.valid) {
       return res.status(400).json({
-        error: 'Missing required fields',
+        error: "Missing required fields",
         missingFields: fieldsValidation.missingFields,
       });
     }
 
-    const documentName = body.documentName || '제목 없음';
+    const documentName = body.documentName || "제목 없음";
 
     // Gemini API Key 가져오기
     const apiKey = getGeminiClient();
@@ -116,20 +126,20 @@ FAQ는 최소 5개 이상 생성하고, 반드시 문서에 명시된 정보만 
 
     // 타임아웃 설정 (45초)
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error('Request timeout')), 45000);
+      setTimeout(() => reject(new Error("Request timeout")), 45000);
     });
 
     // Gemini API 호출
     const response = await Promise.race([
       fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
             temperature: 0.7,
             maxOutputTokens: 8192,
-            responseMimeType: 'application/json',
+            responseMimeType: "application/json",
           },
         }),
       }),
@@ -145,7 +155,7 @@ FAQ는 최소 5개 이상 생성하고, 반드시 문서에 명시된 정보만 
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!text) {
-      return res.status(500).json({ error: 'Empty response from Gemini' });
+      return res.status(500).json({ error: "Empty response from Gemini" });
     }
 
     // JSON 파싱
@@ -153,14 +163,14 @@ FAQ는 최소 5개 이상 생성하고, 반드시 문서에 명시된 정보만 
 
     // 스마트 청킹 (간단한 구현)
     const chunkSize = 500;
-    const chunks: DocumentAnalysisResult['chunks'] = [];
+    const chunks: DocumentAnalysisResult["chunks"] = [];
     for (let i = 0; i < body.documentText.length; i += chunkSize) {
       const content = body.documentText.substring(i, i + chunkSize);
       chunks.push({
         title: `청크 ${chunks.length + 1}`,
         content,
-        summary: content.substring(0, 100) + '...',
-        importance: '보통',
+        summary: content.substring(0, 100) + "...",
+        importance: "보통",
         keywords: [],
       });
     }
@@ -169,16 +179,18 @@ FAQ는 최소 5개 이상 생성하고, 반드시 문서에 명시된 정보만 
 
     return res.status(200).json(analysisResult);
   } catch (error: any) {
-    console.error('Analyze document error:', error);
+    console.error("Analyze document error:", error);
 
-    if (error.message === 'Request timeout') {
-      return res.status(504).json({ error: 'Request timeout' });
+    if (error.message === "Request timeout") {
+      return res.status(504).json({ error: "Request timeout" });
     }
 
     if (error instanceof SyntaxError) {
-      return res.status(500).json({ error: 'Failed to parse Gemini response' });
+      return res.status(500).json({ error: "Failed to parse Gemini response" });
     }
 
-    return res.status(500).json({ error: error.message || 'Failed to analyze document' });
+    return res
+      .status(500)
+      .json({ error: error.message || "Failed to analyze document" });
   }
 }

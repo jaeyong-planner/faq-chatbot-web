@@ -8,10 +8,15 @@
  * }
  */
 
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getGeminiClient, getGeminiModel } from './_lib/geminiClient.js';
-import { extractToken, validateToken, parseRequestBody, validateRequiredFields } from './_lib/validateRequest.js';
-import { EMBRAIN_PERSONA_PROMPT } from './_lib/personaPrompt.js';
+import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { getGeminiClient, getGeminiModel } from "./_lib/geminiClient.js";
+import {
+  extractToken,
+  validateToken,
+  parseRequestBody,
+  validateRequiredFields,
+} from "./_lib/validateRequest.js";
+import { EMBRAIN_PERSONA_PROMPT } from "./_lib/personaPrompt.js";
 
 interface ContextItem {
   content: string;
@@ -32,16 +37,16 @@ interface GenerateResponseBody {
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS 헤더 설정
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return res.status(200).end();
   }
 
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
   }
 
   try {
@@ -50,7 +55,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (token) {
       const validation = await validateToken(token);
       if (!validation.valid) {
-        return res.status(401).json({ error: validation.error || 'Invalid token' });
+        return res
+          .status(401)
+          .json({ error: validation.error || "Invalid token" });
       }
     }
 
@@ -58,17 +65,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const body = await parseRequestBody<GenerateResponseBody>(req);
 
     // 필수 필드 검증
-    const fieldsValidation = validateRequiredFields(body, ['question', 'context']);
+    const fieldsValidation = validateRequiredFields(body, [
+      "question",
+      "context",
+    ]);
     if (!fieldsValidation.valid) {
       return res.status(400).json({
-        error: 'Missing required fields',
+        error: "Missing required fields",
         missingFields: fieldsValidation.missingFields,
       });
     }
 
     // context 배열 검증
     if (!Array.isArray(body.context)) {
-      return res.status(400).json({ error: 'context must be an array' });
+      return res.status(400).json({ error: "context must be an array" });
     }
 
     // Gemini API Key 가져오기
@@ -77,15 +87,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${apiKey}`;
 
     // Context 텍스트 구성
-    const contextText = body.context.map((ctx) => ctx.content).join('\n\n---\n\n');
+    const contextText = body.context
+      .map((ctx) => ctx.content)
+      .join("\n\n---\n\n");
 
     // 대화 히스토리 구성
-    const contents: Array<{ role: 'user' | 'model'; parts: Array<{ text: string }> }> = [];
+    const contents: Array<{
+      role: "user" | "model";
+      parts: Array<{ text: string }>;
+    }> = [];
 
     if (body.conversationHistory && body.conversationHistory.length > 0) {
       for (const msg of body.conversationHistory) {
         contents.push({
-          role: msg.role === 'user' ? 'user' : 'model',
+          role: msg.role === "user" ? "user" : "model",
           parts: [{ text: msg.content }],
         });
       }
@@ -148,20 +163,20 @@ ${body.question}
 7. 수치, 날짜, 고유명사는 문서와 완전히 일치해야 함`;
 
     contents.push({
-      role: 'user',
+      role: "user",
       parts: [{ text: finalPrompt }],
     });
 
     // 타임아웃 설정 (30초)
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error('Request timeout')), 30000);
+      setTimeout(() => reject(new Error("Request timeout")), 30000);
     });
 
     // Gemini API 호출
     const response = await Promise.race([
       fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents,
           generationConfig: {
@@ -182,12 +197,12 @@ ${body.question}
     const responseText = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!responseText) {
-      return res.status(500).json({ error: 'Empty response from Gemini' });
+      return res.status(500).json({ error: "Empty response from Gemini" });
     }
 
     // 출처 정보 구성
     const sources = body.context.map((ctx) => ({
-      documentName: ctx.source || 'Unknown',
+      documentName: ctx.source || "Unknown",
       pageNumber: 1, // 실제 구현에서는 metadata에서 추출
       relevance: ctx.similarity || 0,
     }));
@@ -197,12 +212,14 @@ ${body.question}
       sources,
     });
   } catch (error: any) {
-    console.error('Generate response error:', error);
+    console.error("Generate response error:", error);
 
-    if (error.message === 'Request timeout') {
-      return res.status(504).json({ error: 'Request timeout' });
+    if (error.message === "Request timeout") {
+      return res.status(504).json({ error: "Request timeout" });
     }
 
-    return res.status(500).json({ error: error.message || 'Failed to generate response' });
+    return res
+      .status(500)
+      .json({ error: error.message || "Failed to generate response" });
   }
 }

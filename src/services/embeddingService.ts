@@ -4,17 +4,17 @@
  * Gemini 실패 시 해시 기반 Fallback, LRU 캐시 적용
  */
 
-import { createLogger } from './logger';
-import type { GeminiAPIConfig } from '../types';
-import { defaultConfig } from './config';
-import { WebGeminiService } from './WebGeminiService';
+import { createLogger } from "./logger";
+import type { GeminiAPIConfig } from "../types";
+import { defaultConfig } from "./config";
+import { WebGeminiService } from "./WebGeminiService";
 
 interface CacheEntry {
   embedding: number[];
   timestamp: number;
 }
 
-const log = createLogger('embedding');
+const log = createLogger("embedding");
 
 class LRUCache {
   private cache: Map<string, CacheEntry>;
@@ -80,7 +80,8 @@ class LRUCache {
 export class EmbeddingService {
   private static instance: EmbeddingService;
   private geminiActive: boolean = true;
-  private embeddingDimension: number = defaultConfig.embedding.targetEmbeddingDimension;
+  private embeddingDimension: number =
+    defaultConfig.embedding.targetEmbeddingDimension;
   private embeddingCache: LRUCache;
   /** 마지막 generateEmbedding 호출이 해시 기반이었는지 여부 */
   public lastEmbeddingWasHash: boolean = false;
@@ -88,7 +89,7 @@ export class EmbeddingService {
   private constructor() {
     this.embeddingCache = new LRUCache(
       defaultConfig.embedding.embeddingCacheSize,
-      defaultConfig.embedding.embeddingCacheTTL
+      defaultConfig.embedding.embeddingCacheTTL,
     );
   }
 
@@ -115,7 +116,7 @@ export class EmbeddingService {
     let hash = 0;
     for (let i = 0; i < trimmed.length; i++) {
       const char = trimmed.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
+      hash = (hash << 5) - hash + char;
       hash = hash & hash;
     }
     return hash.toString(36);
@@ -128,7 +129,7 @@ export class EmbeddingService {
    */
   async generateEmbedding(text: string): Promise<number[]> {
     if (!text || text.trim().length === 0) {
-      throw new Error('텍스트가 비어있습니다.');
+      throw new Error("텍스트가 비어있습니다.");
     }
 
     // 캐시 확인
@@ -146,15 +147,20 @@ export class EmbeddingService {
 
         if (Array.isArray(embedding) && embedding.length > 0) {
           if (this.embeddingDimension !== embedding.length) {
-            log.warn(`임베딩 차원 불일치: 설정=${this.embeddingDimension}, 응답=${embedding.length}`);
+            log.warn(
+              `임베딩 차원 불일치: 설정=${this.embeddingDimension}, 응답=${embedding.length}`,
+            );
           }
           this.embeddingCache.set(cacheKey, embedding);
           this.lastEmbeddingWasHash = false;
           return embedding;
         }
-        throw new Error('임베딩 응답이 비어있습니다.');
+        throw new Error("임베딩 응답이 비어있습니다.");
       } catch (error: any) {
-        log.warn('Gemini 임베딩 생성 실패, 해시 기반 임베딩으로 전환:', error.message);
+        log.warn(
+          "Gemini 임베딩 생성 실패, 해시 기반 임베딩으로 전환:",
+          error.message,
+        );
       }
     }
 
@@ -178,7 +184,7 @@ export class EmbeddingService {
     if (this.geminiActive) {
       try {
         const gemini = WebGeminiService.getInstance();
-        const trimmedTexts = texts.map(t => t.trim());
+        const trimmedTexts = texts.map((t) => t.trim());
         const embeddings = await gemini.generateBatchEmbeddings(trimmedTexts);
 
         // 캐시에 저장
@@ -190,13 +196,16 @@ export class EmbeddingService {
         this.lastEmbeddingWasHash = false;
         return embeddings;
       } catch (error: any) {
-        log.warn('Gemini 배치 임베딩 생성 실패, 해시 기반 임베딩으로 전환:', error.message);
+        log.warn(
+          "Gemini 배치 임베딩 생성 실패, 해시 기반 임베딩으로 전환:",
+          error.message,
+        );
       }
     }
 
     // Fallback: 해시 기반 임베딩
     this.lastEmbeddingWasHash = true;
-    return texts.map(text => this.generateHashEmbedding(text));
+    return texts.map((text) => this.generateHashEmbedding(text));
   }
 
   /**
@@ -219,26 +228,28 @@ export class EmbeddingService {
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
       const char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
+      hash = (hash << 5) - hash + char;
       hash = hash & hash;
     }
     return Math.abs(hash);
   }
 
   private normalizeVector(vector: number[]): number[] {
-    const magnitude = Math.sqrt(vector.reduce((sum, val) => sum + val * val, 0));
+    const magnitude = Math.sqrt(
+      vector.reduce((sum, val) => sum + val * val, 0),
+    );
     if (magnitude === 0) {
       return vector;
     }
-    return vector.map(val => val / magnitude);
+    return vector.map((val) => val / magnitude);
   }
 
   getEmbeddingDimension(): number {
     return this.embeddingDimension;
   }
 
-  getCurrentModel(): 'gemini' | 'hash' {
-    return this.geminiActive ? 'gemini' : 'hash';
+  getCurrentModel(): "gemini" | "hash" {
+    return this.geminiActive ? "gemini" : "hash";
   }
 
   getCacheStats(): { size: number; maxSize: number; ttl: number } {

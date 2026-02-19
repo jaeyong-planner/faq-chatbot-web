@@ -62,14 +62,14 @@ export interface AppConfig {
 
 export const defaultConfig: AppConfig = {
   embedding: {
-    geminiEmbeddingModel: 'gemini-embedding-001',
+    geminiEmbeddingModel: "gemini-embedding-001",
     targetEmbeddingDimension: 768,
     embeddingCacheSize: 500,
     embeddingCacheTTL: 30 * 60 * 1000,
   },
   aiModel: {
-    geminiDefaultModel: 'gemini-2.0-flash',
-    geminiBaseUrl: 'https://generativelanguage.googleapis.com/v1beta',
+    geminiDefaultModel: "gemini-2.0-flash",
+    geminiBaseUrl: "https://generativelanguage.googleapis.com/v1beta",
   },
   timeout: {
     apiConnectionTest: 5000,

@@ -3,7 +3,7 @@
  * Service Role Key를 사용한 RLS 우회 클라이언트
  */
 
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
 let supabaseAdmin: SupabaseClient | null = null;
 
@@ -19,11 +19,13 @@ export function getSupabaseAdmin(): SupabaseClient {
   const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!supabaseUrl) {
-    throw new Error('VITE_SUPABASE_URL environment variable is not set');
+    throw new Error("VITE_SUPABASE_URL environment variable is not set");
   }
 
   if (!supabaseServiceRoleKey) {
-    throw new Error('SUPABASE_SERVICE_ROLE_KEY environment variable is not set');
+    throw new Error(
+      "SUPABASE_SERVICE_ROLE_KEY environment variable is not set",
+    );
   }
 
   supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
