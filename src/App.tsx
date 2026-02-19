@@ -70,7 +70,7 @@ function App() {
     return (
       <ErrorBoundary>
         <ToastProvider>
-          <Login onLogin={() => setCurrentView('admin')} />
+          <Login onLogin={(success) => { if (success) setCurrentView('admin'); }} />
         </ToastProvider>
       </ErrorBoundary>
     );
@@ -79,14 +79,14 @@ function App() {
   // Admin panel with sidebar
   const renderPage = () => {
     switch (currentPage) {
-      case '대시보드': return <Dashboard />;
+      case '대시보드': return <Dashboard onNavigateToChatLogs={() => setCurrentPage('채팅 로그')} />;
       case '엠브레인Agent관리': return <FaqManagement faqs={faqs} setFaqs={setFaqs} />;
       case '문서 관리': return <DocumentManagement setFaqs={setFaqs} />;
       case '청크 관리': return <ChunkManagement />;
       case '채팅 로그': return <ChatLogs />;
       case '채팅 분석': return <ChatLogAnalysis />;
       case '시스템 설정': return <SystemSettings />;
-      default: return <Dashboard />;
+      default: return <Dashboard onNavigateToChatLogs={() => setCurrentPage('채팅 로그')} />;
     }
   };
 

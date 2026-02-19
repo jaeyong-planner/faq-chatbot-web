@@ -5,7 +5,6 @@ interface SidebarProps {
   currentPage: Page;
   setCurrentPage: (page: Page) => void;
   onLogout: () => void;
-  onGoToChatbot?: () => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ currentPage, setCurrentPage, onLogout }) => {
