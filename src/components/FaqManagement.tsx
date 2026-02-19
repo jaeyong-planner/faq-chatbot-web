@@ -345,7 +345,7 @@ const FaqManagement: React.FC<FaqManagementProps> = ({ faqs, setFaqs, onGoToChat
       <div className="card">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-black">FAQ 관리</h1>
+            <h1 className="text-2xl font-bold text-black">엠브레인Agent관리</h1>
             <p className="text-gray-600 mt-1">자주 묻는 질문을 관리하고 편집하세요</p>
           </div>
           <div className="flex items-center space-x-3">
@@ -382,7 +382,7 @@ const FaqManagement: React.FC<FaqManagementProps> = ({ faqs, setFaqs, onGoToChat
         </div>
       </div>
 
-      {/* Featured FAQ 관리 패널 토글 버튼 */}
+      {/* Featured 엠브레인Agent관리 패널 토글 버튼 */}
       <div className="card">
         <button
           onClick={() => setIsFeaturedPanelOpen(!isFeaturedPanelOpen)}

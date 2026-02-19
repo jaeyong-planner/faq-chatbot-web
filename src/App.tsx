@@ -81,7 +81,7 @@ function App() {
   const renderPage = () => {
     switch (currentPage) {
       case '대시보드': return <Dashboard />;
-      case 'FAQ 관리': return <FaqManagement faqs={faqs} setFaqs={setFaqs} />;
+      case '엠브레인Agent관리': return <FaqManagement faqs={faqs} setFaqs={setFaqs} />;
       case '문서 관리': return <DocumentManagement setFaqs={setFaqs} />;
       case '청크 관리': return <ChunkManagement />;
       case '채팅 로그': return <ChatLogs />;

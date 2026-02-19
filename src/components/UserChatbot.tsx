@@ -1318,7 +1318,7 @@ const UserChatbot: React.FC<UserChatbotProps> = ({ faqs = [], onGoToAdmin, selec
                   ))
                 ) : (
                   <p className="col-span-2 text-sm text-gray-400 text-center py-4">
-                    FAQ 관리에서 자주 묻는 질문을 지정해주세요.
+                    엠브레인Agent관리에서 자주 묻는 질문을 지정해주세요.
                   </p>
                 )}
               </div>
