@@ -81,9 +81,46 @@ const DocumentManagement: React.FC<DocumentManagementProps> = ({ setFaqs }) => {
         }
       }
 
+      // Generate embeddings for newly created FAQs
+      let embeddingCount = 0;
+      if (successCount > 0) {
+        showToast(`FAQ ${successCount}건 등록 완료. 임베딩 생성 중...`, 'info');
+        try {
+          const { WebGeminiService } = await import('../services/WebGeminiService');
+          const webGeminiService = WebGeminiService.getInstance();
+
+          const allDbFaqs = await dbService.getAllFAQs();
+          const faqsNeedingEmbedding = allDbFaqs.filter(
+            (f) => f.isActive && (!f.questionEmbedding || f.questionEmbedding.length === 0)
+          );
+
+          for (const faq of faqsNeedingEmbedding) {
+            try {
+              const [questionEmbedding, answerEmbedding] = await webGeminiService.generateBatchEmbeddings([
+                faq.question,
+                faq.answer
+              ]);
+
+              if (questionEmbedding?.length > 0 && answerEmbedding?.length > 0) {
+                await dbService.updateFAQ(faq.id, {
+                  ...faq,
+                  questionEmbedding,
+                  answerEmbedding
+                });
+                embeddingCount++;
+              }
+            } catch (embErr) {
+              log.warn(`FAQ ${faq.id} 임베딩 생성 실패:`, embErr);
+            }
+          }
+        } catch (embError) {
+          log.error('임베딩 생성 중 오류:', embError);
+        }
+      }
+
       await loadFAQs();
       showToast(
-        `엑셀 업로드 완료: ${successCount}건 등록${failCount > 0 ? `, ${failCount}건 실패` : ''}`,
+        `엑셀 업로드 완료: ${successCount}건 등록${embeddingCount > 0 ? `, ${embeddingCount}건 임베딩 생성` : ''}${failCount > 0 ? `, ${failCount}건 실패` : ''}`,
         failCount > 0 ? 'warning' : 'success'
       );
     } catch (err) {
