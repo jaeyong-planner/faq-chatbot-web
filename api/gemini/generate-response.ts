@@ -45,15 +45,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // JWT 토큰 검증
+    // JWT 토큰 검증 (선택적: 공개 챗봇에서도 응답 생성 가능)
     const token = extractToken(req);
-    if (!token) {
-      return res.status(401).json({ error: 'Authorization token required' });
-    }
-
-    const validation = await validateToken(token);
-    if (!validation.valid) {
-      return res.status(401).json({ error: validation.error || 'Invalid token' });
+    if (token) {
+      const validation = await validateToken(token);
+      if (!validation.valid) {
+        return res.status(401).json({ error: validation.error || 'Invalid token' });
+      }
     }
 
     // 요청 body 파싱
