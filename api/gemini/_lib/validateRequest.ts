@@ -4,7 +4,7 @@
  */
 
 import type { VercelRequest } from '@vercel/node';
-import { getSupabaseAdmin } from './supabaseAdmin';
+import { getSupabaseAdmin } from './supabaseAdmin.js';
 
 /**
  * Authorization 헤더에서 JWT 토큰 추출

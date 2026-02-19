@@ -5,8 +5,8 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { generateEmbedding } from './_lib/geminiClient';
-import { extractToken, validateToken, parseRequestBody, validateRequiredFields } from './_lib/validateRequest';
+import { generateEmbedding } from './_lib/geminiClient.js';
+import { extractToken, validateToken, parseRequestBody, validateRequiredFields } from './_lib/validateRequest.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS 헤더 설정

@@ -4,7 +4,7 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getGeminiClient, getGeminiModel } from './_lib/geminiClient';
+import { getGeminiClient, getGeminiModel } from './_lib/geminiClient.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS 헤더 설정

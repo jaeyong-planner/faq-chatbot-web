@@ -5,9 +5,9 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getGeminiClient, getGeminiModel } from './_lib/geminiClient';
-import { extractToken, validateToken, parseRequestBody, validateRequiredFields } from './_lib/validateRequest';
-import { FAQ_GENERATION_PERSONA } from './_lib/personaPrompt';
+import { getGeminiClient, getGeminiModel } from './_lib/geminiClient.js';
+import { extractToken, validateToken, parseRequestBody, validateRequiredFields } from './_lib/validateRequest.js';
+import { FAQ_GENERATION_PERSONA } from './_lib/personaPrompt.js';
 
 interface DocumentAnalysisResult {
   summary: string;
