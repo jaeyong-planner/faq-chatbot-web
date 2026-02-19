@@ -17,32 +17,26 @@ import UserChatbot from './components/UserChatbot';
 
 function App() {
   const { user, loading, signOut } = useAuth();
-  const [currentView, setCurrentView] = useState<'login' | 'admin' | 'chatbot'>('login');
+  const isAdminPath = window.location.pathname.startsWith('/admin');
+  const [currentView, setCurrentView] = useState<'login' | 'admin' | 'chatbot'>(
+    isAdminPath ? 'login' : 'chatbot'
+  );
   const [currentPage, setCurrentPage] = useState<Page>('대시보드');
   const [faqs, setFaqs] = useState<FAQ[]>([]);
 
-  // URL query parameter handling
+  // Auth state + pathname → view switching
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const view = params.get('view');
-    if (view === 'chatbot') {
+    const onAdminPath = window.location.pathname.startsWith('/admin');
+    if (!onAdminPath) {
       setCurrentView('chatbot');
+      return;
     }
-  }, []);
-
-  // Auth state → view switching
-  useEffect(() => {
     if (user) {
-      if (currentView === 'login') {
-        setCurrentView('admin');
-      }
+      setCurrentView('admin');
     } else if (!loading) {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get('view') !== 'chatbot') {
-        setCurrentView('login');
-      }
+      setCurrentView('login');
     }
-  }, [user, loading, currentView]);
+  }, [user, loading]);
 
   const handleLogout = async () => {
     await signOut();

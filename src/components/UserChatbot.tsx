@@ -1033,16 +1033,12 @@ const UserChatbot: React.FC<UserChatbotProps> = ({ faqs = [], onGoToAdmin, selec
               <p className="text-sm text-gray-500">24시간 언제든지 질문하세요</p>
             </div>
           </div>
-          <button
-            onClick={() => {
-              finalizeSession().finally(() => {
-                onGoToAdmin?.();
-              });
-            }}
-            className="text-blue-600 hover:text-blue-700 text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-50 transition-colors duration-200"
+          <a
+            href="/admin"
+            className="text-xs text-gray-400 hover:text-blue-600 transition-colors duration-200"
           >
-            관리자 화면으로 돌아가기
-          </button>
+            관리자
+          </a>
         </div>
       </div>
 
