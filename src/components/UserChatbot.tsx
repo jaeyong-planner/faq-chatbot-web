@@ -54,7 +54,7 @@ type LogMessagePayload = {
   sourceFaq?: number;
 };
 
-const INITIAL_BOT_MESSAGE = '안녕하세요! 금융 FAQ 챗봇입니다. 궁금한 것이 있으시면 언제든 물어보세요.';
+const INITIAL_BOT_MESSAGE = '안녕하세요! 엠브레인Agent입니다. 궁금한 것이 있으시면 언제든 물어보세요.';
 
 // 복합 질문 감지 함수
 const COMPOUND_CONJUNCTIONS = ['그리고', '또한', '추가로', '아울러', '더불어', '함께', '뿐만 아니라'];
@@ -1029,7 +1029,7 @@ const UserChatbot: React.FC<UserChatbotProps> = ({ faqs = [], onGoToAdmin, selec
               </svg>
             </div>
             <div className="ml-3">
-              <h1 className="text-lg font-semibold text-black">금융 FAQ 챗봇</h1>
+              <h1 className="text-lg font-semibold text-black">엠브레인Agent</h1>
               <p className="text-sm text-gray-500">24시간 언제든지 질문하세요</p>
             </div>
           </div>

@@ -139,7 +139,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigateToChatLogs, onGoToChatb
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-black">대시보드</h1>
-            <p className="text-gray-600 mt-1">금융 FAQ 챗봇 관리 현황</p>
+            <p className="text-gray-600 mt-1">엠브레인Agent 관리 현황</p>
           </div>
           <div className="flex items-center space-x-4">
             {onGoToChatbot && (

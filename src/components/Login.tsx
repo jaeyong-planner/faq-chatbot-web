@@ -89,7 +89,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               </svg>
             </div>
             <h2 className="text-2xl font-bold text-black mb-2">관리자 로그인</h2>
-            <p className="text-gray-600">FAQ 챗봇 관리 시스템</p>
+            <p className="text-gray-600">엠브레인Agent 관리 시스템</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -156,7 +156,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               href="/"
               className="text-sm text-gray-500 hover:text-blue-600 transition-colors duration-200"
             >
-              FAQ 챗봇으로 돌아가기
+              엠브레인Agent로 돌아가기
             </a>
           </div>
         </div>

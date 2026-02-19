@@ -97,7 +97,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, setCurrentPage, onLogout
               </svg>
             </div>
             <div className="ml-3">
-              <h1 className="text-lg font-semibold text-black">FAQ 관리</h1>
+              <h1 className="text-lg font-semibold text-black">엠브레인Agent</h1>
             </div>
           </div>
           {/* 모바일 닫기 버튼 */}
