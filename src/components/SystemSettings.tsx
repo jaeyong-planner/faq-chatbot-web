@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { WebGeminiService } from '../services/WebGeminiService';
 import { embeddingService } from '../services/embeddingService';
 import { GeminiAPIConfig, CustomerServiceInfo } from '../types';
@@ -6,6 +6,7 @@ import { defaultConfig } from '../services/config';
 import { useToast } from './Toast';
 import { createLogger } from '../services/logger';
 import { getSupabaseDatabaseService } from '../services/supabase';
+import { supabase } from '../services/supabase/client';
 
 const log = createLogger('SysSettings');
 const SystemSettings: React.FC = () => {
@@ -33,6 +34,122 @@ const SystemSettings: React.FC = () => {
     email: 'support@embrain.com',
     operatingHours: '평일 09:00~18:00'
   });
+
+  // 임베딩 관리 상태
+  const [embeddingStats, setEmbeddingStats] = useState<{
+    totalFaqs: number;
+    withEmbedding: number;
+    withoutEmbedding: number;
+  }>({ totalFaqs: 0, withEmbedding: 0, withoutEmbedding: 0 });
+  const [embeddingGenerating, setEmbeddingGenerating] = useState(false);
+  const [embeddingResult, setEmbeddingResult] = useState<string>('');
+
+  // RPC 함수 상태
+  const [rpcStatus, setRpcStatus] = useState<{
+    checking: boolean;
+    existing: string[];
+    missing: string[];
+    message: string;
+    sqlUrl?: string;
+  }>({ checking: false, existing: [], missing: [], message: '' });
+
+  // 임베딩 통계 로드
+  const loadEmbeddingStats = useCallback(async () => {
+    try {
+      const { count: total } = await supabase
+        .from('faqs')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_active', true);
+
+      const { count: withEmb } = await supabase
+        .from('faqs')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_active', true)
+        .not('question_embedding', 'is', null);
+
+      const totalCount = total || 0;
+      const withCount = withEmb || 0;
+
+      setEmbeddingStats({
+        totalFaqs: totalCount,
+        withEmbedding: withCount,
+        withoutEmbedding: totalCount - withCount
+      });
+    } catch (error) {
+      log.error('임베딩 통계 로드 실패:', error);
+    }
+  }, []);
+
+  // RPC 함수 상태 확인
+  const checkRpcStatus = useCallback(async () => {
+    setRpcStatus(prev => ({ ...prev, checking: true }));
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const response = await fetch('/api/admin/setup-rpc', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setRpcStatus({
+          checking: false,
+          existing: result.existing || [],
+          missing: result.missing || [],
+          message: result.message || '',
+          sqlUrl: result.sql
+        });
+      }
+    } catch (error) {
+      log.error('RPC 상태 확인 실패:', error);
+      setRpcStatus(prev => ({ ...prev, checking: false, message: '확인 실패' }));
+    }
+  }, []);
+
+  // 배치 임베딩 생성
+  const handleGenerateEmbeddings = async () => {
+    setEmbeddingGenerating(true);
+    setEmbeddingResult('');
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        showToast('로그인이 필요합니다.', 'error');
+        setEmbeddingGenerating(false);
+        return;
+      }
+
+      const response = await fetch('/api/admin/generate-embeddings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        setEmbeddingResult(result.message);
+        showToast(result.message, 'success');
+        await loadEmbeddingStats();
+      } else {
+        setEmbeddingResult(`오류: ${result.error}`);
+        showToast(`임베딩 생성 실패: ${result.error}`, 'error');
+      }
+    } catch (error: any) {
+      const msg = error.message || '임베딩 생성 중 오류 발생';
+      setEmbeddingResult(`오류: ${msg}`);
+      showToast(msg, 'error');
+    } finally {
+      setEmbeddingGenerating(false);
+    }
+  };
 
   // 설정 로드
   useEffect(() => {
@@ -85,7 +202,9 @@ const SystemSettings: React.FC = () => {
     };
 
     loadSettings();
-  }, []);
+    loadEmbeddingStats();
+    checkRpcStatus();
+  }, [loadEmbeddingStats, checkRpcStatus]);
 
   // 연결 테스트
   const handleTest = async () => {
@@ -347,6 +466,175 @@ const SystemSettings: React.FC = () => {
             고객센터 정보 저장
           </button>
         </div>
+      </div>
+
+      {/* Embedding Management */}
+      <div className="bg-white rounded-xl shadow-sm p-6">
+        <h3 className="text-lg font-semibold text-black mb-6 flex items-center">
+          <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center mr-3">
+            <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+            </svg>
+          </div>
+          FAQ 임베딩 관리
+        </h3>
+
+        <p className="text-sm text-gray-500 mb-4">
+          임베딩은 FAQ의 의미를 벡터로 변환하여 사용자 질문과 유사한 FAQ를 찾는 데 사용됩니다.
+          임베딩이 없으면 키워드 매칭만 사용되어 검색 정확도가 낮아집니다.
+        </p>
+
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-4 mb-6">
+          <div className="bg-gray-50 rounded-lg p-4 text-center">
+            <p className="text-2xl font-bold text-gray-800">{embeddingStats.totalFaqs}</p>
+            <p className="text-xs text-gray-500 mt-1">전체 FAQ</p>
+          </div>
+          <div className="bg-green-50 rounded-lg p-4 text-center">
+            <p className="text-2xl font-bold text-green-600">{embeddingStats.withEmbedding}</p>
+            <p className="text-xs text-gray-500 mt-1">임베딩 완료</p>
+          </div>
+          <div className={`rounded-lg p-4 text-center ${embeddingStats.withoutEmbedding > 0 ? 'bg-red-50' : 'bg-gray-50'}`}>
+            <p className={`text-2xl font-bold ${embeddingStats.withoutEmbedding > 0 ? 'text-red-600' : 'text-gray-400'}`}>
+              {embeddingStats.withoutEmbedding}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">임베딩 미생성</p>
+          </div>
+        </div>
+
+        {/* Progress bar */}
+        {embeddingStats.totalFaqs > 0 && (
+          <div className="mb-6">
+            <div className="flex justify-between text-xs text-gray-500 mb-1">
+              <span>임베딩 진행률</span>
+              <span>{Math.round((embeddingStats.withEmbedding / embeddingStats.totalFaqs) * 100)}%</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div
+                className="bg-purple-600 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${(embeddingStats.withEmbedding / embeddingStats.totalFaqs) * 100}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Result message */}
+        {embeddingResult && (
+          <div className={`mb-4 p-3 rounded-lg text-sm ${
+            embeddingResult.startsWith('오류') ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'
+          }`}>
+            {embeddingResult}
+          </div>
+        )}
+
+        {/* Action buttons */}
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={handleGenerateEmbeddings}
+            disabled={embeddingGenerating || embeddingStats.withoutEmbedding === 0}
+            className="bg-purple-600 text-white px-5 py-2.5 rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors duration-200 font-medium flex items-center"
+          >
+            {embeddingGenerating ? (
+              <>
+                <svg className="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                임베딩 생성 중...
+              </>
+            ) : (
+              '임베딩 생성'
+            )}
+          </button>
+          <button
+            onClick={loadEmbeddingStats}
+            className="text-gray-600 px-5 py-2.5 rounded-lg hover:bg-gray-50 transition-colors duration-200 font-medium"
+          >
+            새로고침
+          </button>
+        </div>
+
+        {embeddingStats.withoutEmbedding === 0 && embeddingStats.totalFaqs > 0 && (
+          <p className="mt-3 text-sm text-green-600">모든 FAQ에 임베딩이 생성되어 있습니다.</p>
+        )}
+      </div>
+
+      {/* RPC Function Status */}
+      <div className="bg-white rounded-xl shadow-sm p-6">
+        <h3 className="text-lg font-semibold text-black mb-6 flex items-center">
+          <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center mr-3">
+            <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
+            </svg>
+          </div>
+          데이터베이스 검색 함수 상태
+        </h3>
+
+        <p className="text-sm text-gray-500 mb-4">
+          벡터 검색에 필요한 PostgreSQL RPC 함수 상태를 확인합니다.
+          함수가 없으면 클라이언트 사이드 검색으로 자동 전환되지만, 성능이 저하될 수 있습니다.
+        </p>
+
+        {rpcStatus.checking ? (
+          <div className="flex items-center text-sm text-gray-500">
+            <svg className="animate-spin mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            RPC 함수 상태 확인 중...
+          </div>
+        ) : (
+          <>
+            {rpcStatus.message && (
+              <div className={`mb-4 p-3 rounded-lg text-sm ${
+                rpcStatus.missing.length === 0 ? 'bg-green-50 text-green-700' : 'bg-yellow-50 text-yellow-700'
+              }`}>
+                {rpcStatus.message}
+              </div>
+            )}
+
+            {rpcStatus.existing.length > 0 && (
+              <div className="mb-3">
+                <p className="text-xs font-medium text-gray-500 mb-1">준비 완료:</p>
+                <div className="flex flex-wrap gap-1">
+                  {rpcStatus.existing.map(fn => (
+                    <span key={fn} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">{fn}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {rpcStatus.missing.length > 0 && (
+              <div className="mb-4">
+                <p className="text-xs font-medium text-gray-500 mb-1">누락:</p>
+                <div className="flex flex-wrap gap-1">
+                  {rpcStatus.missing.map(fn => (
+                    <span key={fn} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">{fn}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={checkRpcStatus}
+                className="text-gray-600 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors duration-200 text-sm font-medium"
+              >
+                다시 확인
+              </button>
+              {rpcStatus.sqlUrl && (
+                <a
+                  href={rpcStatus.sqlUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-orange-600 px-4 py-2 rounded-lg hover:bg-orange-50 transition-colors duration-200 text-sm font-medium"
+                >
+                  Supabase SQL Editor 열기
+                </a>
+              )}
+            </div>
+          </>
+        )}
       </div>
 
       {/* Info Card */}

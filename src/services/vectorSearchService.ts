@@ -152,7 +152,7 @@ export class VectorSearchService {
   }
 
   /**
-   * FAQ 검색 (pgvector RPC: question + answer 검색)
+   * FAQ 검색 (pgvector RPC → 실패 시 클라이언트 사이드 코사인 유사도 Fallback)
    */
   private async searchFAQs(
     queryEmbedding: number[],
@@ -164,7 +164,7 @@ export class VectorSearchService {
       const queryLower = queryText.toLowerCase();
       const embeddingStr = `[${queryEmbedding.join(',')}]`;
 
-      // 질문 + 답변 임베딩 검색 병렬
+      // 1차: RPC 함수 시도
       const [questionRes, answerRes] = await Promise.all([
         supabase.rpc('search_faqs_by_question', {
           query_embedding: embeddingStr,
@@ -177,6 +177,12 @@ export class VectorSearchService {
           match_count: maxResults
         })
       ]);
+
+      // RPC 함수가 존재하지 않으면 클라이언트 사이드 Fallback
+      if (questionRes.error || answerRes.error) {
+        log.warn('RPC 함수 호출 실패, 클라이언트 사이드 벡터 검색으로 전환');
+        return this.searchFAQsClientSide(queryEmbedding, queryText, threshold, maxResults);
+      }
 
       const results: VectorSearchResult[] = [];
       const seenIds = new Set<number>();
@@ -234,13 +240,85 @@ export class VectorSearchService {
 
       return results;
     } catch (error) {
-      log.error('FAQ 검색 실패:', error);
+      log.error('FAQ RPC 검색 실패, 클라이언트 사이드 전환:', error);
+      return this.searchFAQsClientSide(queryEmbedding, queryText, threshold, maxResults);
+    }
+  }
+
+  /**
+   * FAQ 클라이언트 사이드 벡터 검색 (RPC 함수 미존재 시 Fallback)
+   * 모든 FAQ를 가져와서 코사인 유사도를 직접 계산
+   */
+  private async searchFAQsClientSide(
+    queryEmbedding: number[],
+    queryText: string,
+    threshold: number,
+    maxResults: number
+  ): Promise<VectorSearchResult[]> {
+    try {
+      const dbService = getSupabaseDatabaseService();
+      const allFAQs = await dbService.getAllFAQs();
+      const activeFAQs = allFAQs.filter(faq => faq.isActive);
+      const queryLower = queryText.toLowerCase();
+      const results: VectorSearchResult[] = [];
+
+      for (const faq of activeFAQs) {
+        let bestSimilarity = 0;
+        let isQuestionMatch = false;
+
+        // 질문 임베딩 유사도 계산
+        if (faq.questionEmbedding && faq.questionEmbedding.length > 0) {
+          const qSim = this.cosineSimilarity(queryEmbedding, faq.questionEmbedding);
+          if (qSim > bestSimilarity) {
+            bestSimilarity = qSim;
+            isQuestionMatch = true;
+          }
+        }
+
+        // 답변 임베딩 유사도 계산
+        if (faq.answerEmbedding && faq.answerEmbedding.length > 0) {
+          const aSim = this.cosineSimilarity(queryEmbedding, faq.answerEmbedding);
+          if (aSim > bestSimilarity) {
+            bestSimilarity = aSim;
+            isQuestionMatch = false;
+          }
+        }
+
+        if (bestSimilarity >= threshold) {
+          let score = bestSimilarity * (isQuestionMatch ? 1.2 : 0.8);
+
+          if (faq.semanticKeywords && Array.isArray(faq.semanticKeywords)) {
+            const keywordMatch = faq.semanticKeywords.some((kw: string) =>
+              queryLower.includes(kw.toLowerCase())
+            );
+            if (keywordMatch) score *= 1.15;
+          }
+
+          if (faq.generationSource === 'semantic_analysis') score *= 1.1;
+          if (faq.confidence && faq.confidence > 0) {
+            score *= (0.8 + faq.confidence * 0.2);
+          }
+
+          results.push({
+            item: faq,
+            type: 'faq',
+            similarity: bestSimilarity,
+            score
+          });
+        }
+      }
+
+      return results
+        .sort((a, b) => b.score - a.score)
+        .slice(0, maxResults);
+    } catch (error) {
+      log.error('클라이언트 사이드 FAQ 검색 실패:', error);
       return [];
     }
   }
 
   /**
-   * 문서명 검색 (pgvector RPC)
+   * 문서명 검색 (pgvector RPC → 실패 시 빈 배열)
    */
   private async searchDocuments(
     queryEmbedding: number[],
@@ -256,7 +334,7 @@ export class VectorSearchService {
       });
 
       if (error) {
-        log.error('문서 검색 RPC 오류:', error);
+        log.warn('문서 검색 RPC 오류 (함수 미존재 가능):', error.message);
         return [];
       }
 
@@ -281,7 +359,7 @@ export class VectorSearchService {
   }
 
   /**
-   * 청크 검색 (pgvector RPC)
+   * 청크 검색 (pgvector RPC → 실패 시 빈 배열)
    */
   private async searchChunks(
     queryEmbedding: number[],
@@ -300,7 +378,7 @@ export class VectorSearchService {
       });
 
       if (error) {
-        log.error('청크 검색 RPC 오류:', error);
+        log.warn('청크 검색 RPC 오류 (함수 미존재 가능):', error.message);
         return [];
       }
 
